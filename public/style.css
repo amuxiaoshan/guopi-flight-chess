@@ -5,6 +5,11 @@
 .playerchip.turn{border-color:transparent;background:color-mix(in srgb,var(--color) 8%,white);box-shadow:0 0 0 1.3px color-mix(in srgb,var(--color) 45%,white),0 0 14px color-mix(in srgb,var(--color) 25%,transparent)}
 .playerchip.turn::before{content:"";position:absolute;top:-11px;left:calc(50% - 6px);border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--color);animation:turnPointer 1.15s ease-in-out infinite}
 @keyframes turnPointer{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}.playerchip.done{opacity:.65}.playerchip .tiny{margin:auto auto 4px}.playerchip small{color:#9c9c9c;display:block;white-space:nowrap}
+.seatlabels{min-width:0;flex:1}
+.seatlabels .seatrole{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seatlabels .seatname{color:#878b91;font-size:11px;margin-top:2px}
+.playerchip .seatrole{font-weight:600}
+.playerchip small{overflow:hidden;text-overflow:ellipsis;padding:0 2px}
 .playerchip .host-transfer-avatar{padding:0;color:var(--ink);cursor:pointer;outline:1px solid #d5e7fc;outline-offset:2px;transition:transform .12s,box-shadow .12s}
 .playerchip .host-transfer-avatar:focus-visible{outline:3px solid #628cbf}
 .playerchip .host-transfer-avatar:active{transform:scale(.94)}
