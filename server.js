@@ -71,10 +71,10 @@ const COLLISION_LINES = {
  ]
 };
 const collisionLine = role => {const lines=COLLISION_LINES[role]||[];return lines.length?lines[rand(lines.length)]:'';};
-const startIndex = [40,27,1,14];
-// 每方先以掷出6从基地进入棋盘外起飞点 (pos=-2)，下次掷骰才从起飞点进入棋盘格 (pos=0起)；
-// pos=49..54 对应本色终点道的6个可见格子，第6格(54)即为终点；没有隐藏的第7格。
-const LAUNCH=-2, TURN=48, LANE=49, GOAL=54, RING_SIZE=52;
+const startIndex = [39,26,0,13];
+// 掷出6从基地到预备区旁的起飞圈 (pos=-2)；下次掷骰时，各队斜三角格为第1格 (pos=0)。
+// 外圈增加了这块斜三角格，所以本色转弯格为 pos=49，终点道 pos=50..55 共6格。
+const LAUNCH=-2, TURN=49, LANE=50, GOAL=55, RING_SIZE=52;
 // Four corners are exclusive. A role is cosmetic and may repeat.
 const emptyColors = r => [0,1,2,3].filter(c=>!r.players.some(p=>p.kind==='human'&&p.color===c));
 function arrangeBots(r){
@@ -111,8 +111,8 @@ function projection(pos,roll){
   if(cur===GOAL) return {path:route,to:cur,flags:['到达终点']};
   // Each move may activate only one bonus: a same-color hop or a flight.
   // If a hop lands on the flight tile, do not activate the flight a second time.
-  if(cur>=4&&cur<TURN&&cur%4===0){
-    if(cur===16){
+  if(cur>=5&&cur<TURN&&(cur-1)%4===0){
+    if(cur===17){
       cur=28;route.push({pos:cur,kind:'飞跃'});flags.push('飞跃');
     }else{
       cur+=4;route.push({pos:cur,kind:'跳格'});flags.push('跳格');
