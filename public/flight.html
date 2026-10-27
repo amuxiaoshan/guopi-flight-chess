@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f9f8f5"><title>适得棋所</title><link rel="stylesheet" href="/style.css"></head>
+<body><div id="localFileWarning" style="display:none;position:fixed;inset:0;z-index:999;background:#f8f8f7;padding:32px 22px;color:#27292e;font:16px/1.8 system-ui,-apple-system,'Microsoft YaHei',sans-serif;text-align:center;overflow:auto"><div style="max-width:450px;margin:60px auto"><h2>这个入口需要先启动房间服务器</h2><p>请先解压 ZIP，返回游戏文件夹，双击「多人房间_双击启动.bat」，然后访问 http://127.0.0.1:3000/</p><p>只想马上单人玩的话，直接双击文件夹最外层的「单人离线版_双击直接玩.html」就可以。</p></div></div><script>if(location.protocol==='file:')document.addEventListener('DOMContentLoaded',()=>{document.getElementById('localFileWarning').style.display='block'});</script><main>
+<section id="welcome" class="screen active">
+ <div class="titleblock"><h1>适得棋所</h1><p>OC 飞行棋 · 经典地图</p></div>
+ <div class="intro">
+  <label for="nickname">你的名字</label><input id="nickname" maxlength="16" value="玩家" autocomplete="nickname" placeholder="输入昵称">
+  <button id="solo" class="primary">单人游戏</button>
+  <button id="create" class="secondary">创建多人房间</button>
+  <div class="joinrow"><input id="joinCode" placeholder="输入六位房间码" maxlength="6" aria-label="房间码"><button id="join" class="secondary">加入房间</button></div>
+  <p id="inviteNotice" class="inviteNotice" hidden>收到房间邀请啦。填写昵称，再点击「加入房间」即可。</p>
+  <p class="sub">单人可选 1～3 个电脑。多人支持 2～4 个真人，并可由房主补电脑。</p>
+ </div>
+ <div class="footerlinks"><button id="rulesHome" class="textbutton">游戏规则</button><a href="/single.html" download="适得棋所_离线单人版.html" title="下载后可断网打开游玩">下载离线版（断网可玩）</a></div>
+</section>
+<section id="lobby" class="screen">
+ <header class="nav"><button id="exitLobby" class="back" aria-label="返回">‹</button><strong>房间准备</strong><span class="navfiller"></span></header>
+ <div class="roommeta"><div><small>房间号码</small><strong id="codeText">------</strong></div><button id="copyInvite" class="secondary small">复制邀请链接</button></div>
+ <div class="shareSettings" id="shareSettings" hidden><label for="lanAddress">手机同 Wi-Fi 邀请地址</label><select id="lanAddress" aria-label="选择电脑的局域网地址"></select><p id="networkHint" class="sub"></p></div>
+ <div class="caption">我的角色</div><div class="rolechooser"><button id="prevRole" class="arrow">‹</button><div class="largeToken" id="myToken">?</div><button id="nextRole" class="arrow">›</button></div><p id="myRole" class="center hint">随机角色</p>
+ <div class="caption">我的棋子外框颜色</div><div id="myColors" class="colors"></div>
+ <div class="caption spaced">本局座位</div><div id="seats" class="seats"></div>
+ <div id="botControl" class="botcontrols"><div class="botheader"><strong>电脑设置</strong><label>数量 <select id="botCount"></select></label></div><div id="botEditors"></div></div>
+ <p id="lobbyHint" class="sub"></p>
+ <div class="bottom"><button id="startGame" class="primary">开始游戏</button><button id="leave" class="textbutton">返回主页</button></div>
+</section>
+<section id="game" class="screen">
+ <header class="nav"><button id="gameBack" class="back" aria-label="退出">‹</button><strong>适得棋所</strong><button id="gameRules" class="textbutton">规则</button></header>
+ <div id="playerStrip" class="playerstrip"></div>
+ <div class="boardwrap"><img src="/board.svg" alt="飞行棋棋盘" class="boardart"><svg id="pieces" viewBox="0 0 900 900" aria-label="游戏棋子"></svg><div id="bubble" class="bubble"></div></div>
+
+ <div class="boardselection" id="boardSelection">本次选择<strong id="boardSelectedRole">【角色】</strong></div>
+  <div class="gametext"><strong id="status">等待行动</strong><small id="detail"></small></div>
+ <div class="dicearea"><button id="roll" class="dice" aria-label="点击投掷骰子"><span class="cube" id="cube"><span class="face front" data-face="1"></span><span class="face back" data-face="6"></span><span class="face right" data-face="3"></span><span class="face left" data-face="4"></span><span class="face top" data-face="5"></span><span class="face bottom" data-face="2"></span></span></button><span id="diceStatus" class="hint">等待掷骰</span></div>
+ <div id="gameHint" class="bottomgame sub">轮到自己时掷骰 · 可选的棋子会显示光圈和小三角</div>
+</section>
+<section id="result" class="screen result">
+ <h2>游戏结束</h2>
+ <div class="art-placeholder" aria-label="结算插图预留位置"><span>插图预留区</span></div>
+ <div class="rank">本次排名：<strong id="rank">第 1 名</strong></div>
+ <p id="resultNote" class="result-note" hidden>等待房主再次开始游戏</p>
+ <div class="bottom"><button id="restart" class="primary">再次游戏</button><button id="resultHome" class="secondary">返回主页</button></div>
+</section>
+<div class="toast" id="toast" role="status"></div>
+</main>
+<div class="shade" id="dialog"><div class="dialog"><h3 id="dlgTitle">提示</h3><div id="dlgText"></div><div class="dialogActions"><button id="dlgClose" class="secondary">取消</button><button id="dlgConfirm" class="primary">确定</button></div></div></div>
+<script src="/app.js" defer></script></body></html>
