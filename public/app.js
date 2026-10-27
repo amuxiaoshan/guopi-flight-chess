@@ -50,6 +50,49 @@ let roleIndex=0, animPiece=null, animationSerial=0, rollSerial=0, toastTimer, bu
 let myRoomMode='',viewerToken=null,pendingExit=false,checkingRoom=false;
 let lanAddresses=[],lanFetched=false;
 const sleep=ms=>new Promise(res=>setTimeout(res,ms));
+// Original two-note retro coin chime. Synthesized locally; no external or copyrighted audio file.
+const SOUND_PREF='flight-goal-sound';
+let goalSoundEnabled=true,goalAudio=null;
+try{goalSoundEnabled=localStorage.getItem(SOUND_PREF)!=='off';}catch{}
+function prepareGoalAudio(){
+ if(!goalSoundEnabled)return null;
+ const Context=window.AudioContext||window.webkitAudioContext;
+ if(!Context)return null;
+ try{
+  if(!goalAudio||goalAudio.state==='closed')goalAudio=new Context();
+  if(goalAudio.state==='suspended')goalAudio.resume().catch(()=>{});
+  return goalAudio;
+ }catch{return null;}
+}
+function playGoalChime(){
+ const audio=prepareGoalAudio();if(!audio||!goalSoundEnabled)return;
+ const now=audio.currentTime+0.012;
+ for(const [pitch,delay,duration,volume] of [[987.77,0,0.105,0.040],[1318.51,0.090,0.185,0.036]]){
+  const oscillator=audio.createOscillator(),envelope=audio.createGain(),t=now+delay;
+  oscillator.type='square';oscillator.frequency.setValueAtTime(pitch,t);
+  envelope.gain.setValueAtTime(0.0001,t);
+  envelope.gain.exponentialRampToValueAtTime(volume,t+0.006);
+  envelope.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+  oscillator.connect(envelope);envelope.connect(audio.destination);
+  oscillator.start(t);oscillator.stop(t+duration+0.012);
+ }
+}
+function refreshSoundToggle(){
+ const button=$('soundToggle');if(!button)return;
+ button.textContent=goalSoundEnabled?'音效：开':'音效：关';
+ button.setAttribute('aria-pressed',String(goalSoundEnabled));
+ button.title=goalSoundEnabled?'关闭终点音效':'开启终点音效';
+}
+$('soundToggle').onclick=()=>{
+ goalSoundEnabled=!goalSoundEnabled;
+ try{localStorage.setItem(SOUND_PREF,goalSoundEnabled?'on':'off');}catch{}
+ refreshSoundToggle();
+ if(goalSoundEnabled)playGoalChime(); // On-switch preview also unlocks audio on mobile.
+};
+document.addEventListener('pointerdown',prepareGoalAudio,{passive:true});
+document.addEventListener('keydown',prepareGoalAudio);
+refreshSoundToggle();
+
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 function screen(id){document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('active',el.id===id));}
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600);}
@@ -313,7 +356,12 @@ async function animateRoll(n){const own=++rollSerial;const cube=$('cube');const 
  cube.style.transition='none';cube.style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;$('roll').setAttribute('aria-label',`骰子：${n} 点`);
 }
 async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start};drawPieces();
- for(const step of move.path){await sleep(step.kind==='飞跃'?260:step.kind==='跳格'?230:140);if(mine!==animationSerial)return;animPiece.pos=step.pos;drawPieces();}
+ for(let k=0;k<move.path.length;k++){
+  const step=move.path[k];await sleep(step.kind==='飞跃'?260:step.kind==='跳格'?230:140);
+  if(mine!==animationSerial)return;
+  animPiece.pos=step.pos;drawPieces();
+  if(k===move.path.length-1&&step.pos===GOAL)playGoalChime();
+ }
  await sleep(100);if(mine!==animationSerial)return;animPiece=null;drawPieces();
  if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
