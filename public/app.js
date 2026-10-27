@@ -2,7 +2,20 @@
 // Flight chess front end: one shared room state for humans, and server-driven AI.
 const $ = id => document.getElementById(id);
 const NS='http://www.w3.org/2000/svg';
-const ROLE=['?','A','B','C','D','E','F','G','H'];
+// Stable game identifiers A-H map to Shanshan's OCs. Names/marks are display-only.
+const ROLE_INFO={
+ A:{name:'阿禾',mark:'禾',work:'某初新芽'},
+ B:{name:'澄',mark:'澄',work:'某初新芽'},
+ C:{name:'勒尔斯',mark:'勒',work:'某初新芽'},
+ D:{name:'麦冬',mark:'麦',work:'某初新芽'},
+ E:{name:'波波亚',mark:'波',work:'半次研究'},
+ F:{name:'麻特',mark:'麻',work:'半次研究'},
+ G:{name:'塔努利安',mark:'塔',work:'半次研究'},
+ H:{name:'亚洛',mark:'亚',work:'半次研究'}
+};
+const ROLE=['?',...Object.keys(ROLE_INFO)];
+const roleName=role=>ROLE_INFO[role]?.name||'随机角色';
+const roleMark=role=>ROLE_INFO[role]?.mark||'?';
 const COLOR=[
  {name:'蓝',key:'blue',hex:'#41a7f5',start:40,base:[10,678]},
  {name:'黄',key:'yellow',hex:'#f6c945',start:27,base:[690,678]},
@@ -139,16 +152,16 @@ function renderLobby(){
  renderShareSettings();
  const self=me();if(!self)return;
  roleIndex=Math.max(0,ROLE.indexOf(self.role));
- $('myToken').textContent=self.role;
+ $('myToken').textContent=roleMark(self.role);
  $('myToken').style.borderColor=COLOR[self.color].hex;
- $('myRole').textContent=self.role==='?'?'随机角色':`角色 ${self.role}`;
+ $('myRole').textContent=self.role==='?'?'随机角色':`${roleName(self.role)} · ${ROLE_INFO[self.role].work}`;
  const used=state.players.filter(p=>p.kind==='human'&&p.color!==self.color).map(p=>p.color);
  $('myColors').innerHTML=ORDER.map(c=>swatchButton(c,c===self.color,used.includes(c))).join('');
  $('myColors').querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>action({type:'select',color:Number(b.dataset.color)}));
  const specs=[...state.players.map(p=>({...p,fromBot:false})),...state.bots.map((b,i)=>({name:`电脑 ${i+1}`,role:b.role,color:b.color,kind:'ai',fromBot:true}))];
  $('seats').replaceChildren();
  specs.sort((a,b)=>a.color-b.color).forEach(p=>{
-  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${state.mode!=='solo'&&p.kind==='human'&&p.color===state.hostColor?'（房主）':''}</div>`;
+  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(roleName(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${state.mode!=='solo'&&p.kind==='human'&&p.color===state.hostColor?'（房主）':''}</div></div>`;
   $('seats').appendChild(div);
  });
  $('botControl').hidden=!state.host;
@@ -164,7 +177,7 @@ function renderLobby(){
   const humanColors=state.players.map(p=>p.color);
   $('botEditors').innerHTML=state.bots.map((b,i)=>{
    const occupied=state.bots.filter((_,j)=>i!==j).map(x=>x.color).concat(humanColors);
-   return `<div class="botrow"><span>电脑${i+1}</span><select data-role-index="${i}" aria-label="电脑${i+1}角色">${ROLE.map(r=>`<option value="${r}" ${r===b.role?'selected':''}>${r==='?'?'随机角色':`角色 ${r}`}</option>`).join('')}</select><select data-color-index="${i}" aria-label="电脑${i+1}颜色">${ORDER.map(c=>`<option value="${c}" ${c===b.color?'selected':''} ${occupied.includes(c)?'disabled':''}>${COLOR[c].name}色</option>`).join('')}</select></div>`;
+   return `<div class="botrow"><span>电脑${i+1}</span><select data-role-index="${i}" aria-label="电脑${i+1}角色">${ROLE.map(r=>`<option value="${r}" ${r===b.role?'selected':''}>${r==='?'?'随机角色':roleName(r)}</option>`).join('')}</select><select data-color-index="${i}" aria-label="电脑${i+1}颜色">${ORDER.map(c=>`<option value="${c}" ${c===b.color?'selected':''} ${occupied.includes(c)?'disabled':''}>${COLOR[c].name}色</option>`).join('')}</select></div>`;
   }).join('');
   $('botEditors').querySelectorAll('[data-role-index]').forEach(el=>el.onchange=()=>action({type:'bot-config',index:Number(el.dataset.roleIndex),role:el.value}));
   $('botEditors').querySelectorAll('[data-color-index]').forEach(el=>el.onchange=()=>action({type:'bot-config',index:Number(el.dataset.colorIndex),color:Number(el.value)}));
@@ -240,7 +253,7 @@ function drawPieces(){
   if(canSelect){svg('circle',{r:27,fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
    svg('path',{d:'M-9 -44 L9 -44 L0 -31Z',fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
   svg('circle',{r:19,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':5},group);
-  const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':19,fill:'#272a30'},group);letter.textContent=p.role;
+  const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':19,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
   if(canSelect){group.onclick=()=>action({type:'move',piece:id});group.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();action({type:'move',piece:id});}};}
  }
 }
@@ -250,10 +263,10 @@ function renderGame(){
  const count=p.pieces.filter(v=>v===GOAL).length;
  const canTransfer=state.host&&state.mode==='online'&&p.kind==='human'&&p.color!==state.viewerColor;
  const avatar=canTransfer
-  ? `<button type="button" class="tiny host-transfer-avatar" style="--color:${COLOR[p.color].hex}" data-transfer-color="${p.color}" aria-label="移交房主给${escapeHTML(p.name)}" title="点击头像移交房主">${escapeHTML(p.role)}</button>`
-  : `<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div>`;
+  ? `<button type="button" class="tiny host-transfer-avatar" style="--color:${COLOR[p.color].hex}" data-transfer-color="${p.color}" aria-label="移交房主给${escapeHTML(p.name)}" title="点击头像移交房主">${escapeHTML(roleMark(p.role))}</button>`
+  : `<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div>`;
  const hostMark=p.kind==='human'&&p.color===state.hostColor?'<span class="host-tag">房主</span>':'';
- return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}">${avatar}<div title="${escapeHTML(p.name)}" class="seatname">${escapeHTML(p.name)}</div><small>${count}/4 已到终点</small>${hostMark}</div>`;
+ return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}">${avatar}<div title="${escapeHTML(roleName(p.role))}" class="seatname seatrole">${escapeHTML(roleName(p.role))}</div><small title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</small><small>${count}/4 已到终点</small>${hostMark}</div>`;
  }).join('');
  $('playerStrip').querySelectorAll('[data-transfer-color]').forEach(button=>{
    button.onclick=()=>{
