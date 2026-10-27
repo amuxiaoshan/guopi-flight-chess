@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f9f8f5"><title>飞行棋 · OC房间</title><link rel="stylesheet" href="/style.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f9f8f5"><title>适得棋所</title><link rel="stylesheet" href="/style.css"></head>
 <body><div id="localFileWarning" style="display:none;position:fixed;inset:0;z-index:999;background:#f8f8f7;padding:32px 22px;color:#27292e;font:16px/1.8 system-ui,-apple-system,'Microsoft YaHei',sans-serif;text-align:center;overflow:auto"><div style="max-width:450px;margin:60px auto"><h2>这个入口需要先启动房间服务器</h2><p>请先解压 ZIP，返回游戏文件夹，双击「多人房间_双击启动.bat」，然后访问 http://127.0.0.1:3000/</p><p>只想马上单人玩的话，直接双击文件夹最外层的「单人离线版_双击直接玩.html」就可以。</p></div></div><script>if(location.protocol==='file:')document.addEventListener('DOMContentLoaded',()=>{document.getElementById('localFileWarning').style.display='block'});</script><main>
 <section id="welcome" class="screen active">
- <div class="titleblock"><h1>飞行棋</h1><p>OC 飞行棋 · 经典地图</p></div>
+ <div class="titleblock"><h1>适得棋所</h1><p>OC 飞行棋 · 经典地图</p></div>
  <div class="intro">
   <label for="nickname">你的名字</label><input id="nickname" maxlength="16" value="玩家" autocomplete="nickname" placeholder="输入昵称">
   <button id="solo" class="primary">单人游戏</button>
@@ -26,7 +26,7 @@
  <div class="bottom"><button id="startGame" class="primary">开始游戏</button><button id="leave" class="textbutton">返回主页</button></div>
 </section>
 <section id="game" class="screen">
- <header class="nav"><button id="gameBack" class="back" aria-label="退出">‹</button><strong>飞行棋</strong><button id="gameRules" class="textbutton">规则</button></header>
+ <header class="nav"><button id="gameBack" class="back" aria-label="退出">‹</button><strong>适得棋所</strong><button id="gameRules" class="textbutton">规则</button></header>
  <div id="playerStrip" class="playerstrip"></div>
  <div class="boardwrap"><img src="/board.svg" alt="飞行棋棋盘" class="boardart"><svg id="pieces" viewBox="0 0 900 900" aria-label="游戏棋子"></svg><div id="bubble" class="bubble"></div></div>
 
