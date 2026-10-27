@@ -660,10 +660,10 @@ async function animateRoll(n){const own=++rollSerial;const cube=$('cube');const 
  await sleep(660);if(own!==rollSerial)return;
  cube.style.transition='none';cube.style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;$('roll').setAttribute('aria-label',`骰子：${n} 点`);
 }
-async function animateMove(move){const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start};drawPieces();
+async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start};drawPieces();
  for(const step of move.path){await sleep(step.kind==='飞跃'?260:step.kind==='跳格'?230:140);if(mine!==animationSerial)return;animPiece.pos=step.pos;drawPieces();}
  await sleep(100);if(mine!==animationSerial)return;animPiece=null;drawPieces();
- if(move.hit){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=['借过一下。','这个位置归我了。','先走一步。'][move.piece%3];b.style.left=`${x/900*100}%`;b.style.top=`${y/900*100}%`;b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},1650);}
+ if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.left=`${Math.max(35,Math.min(65,x/900*100))}%`;b.style.top=`${y/900*100}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
 function rules(){dialog('游戏说明','每方四枚棋子，掷出6才可起飞且可再掷一次。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；骰点直接落在飞跃格时飞跃后再跳4格，先跳到飞跃格时只飞跃，不会再次跳格。经过虚线交叉处能撞落对方终点道棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。');}
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
