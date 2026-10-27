@@ -25,7 +25,7 @@ function localAddresses(){
 
 const colors = ['blue','yellow','green','red'];
 const roles = ['A','B','C','D','E','F','G','H'];
-const roleNames = {A:'阿禾',B:'澄',C:'勒尔斯',D:'麦冬',E:'波波亚',F:'麻特',G:'塔努利安',H:'亚洛'};
+const roleNames = {A:'青栖禾',B:'澄',C:'勒尔斯',D:'麦冬',E:'波波亚',F:'麻特',G:'塔努利安',H:'亚洛'};
 const roleName = role => roleNames[role] || role;
 const startIndex = [40,27,1,14];
 // 每方从起飞格 (pos=0) 到本色转弯格 (pos=48)；
