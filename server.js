@@ -113,7 +113,7 @@ function projection(pos,roll){
   // If a hop lands on the flight tile, do not activate the flight a second time.
   if(cur>=5&&cur<TURN&&(cur-1)%4===0){
     if(cur===17){
-      cur=28;route.push({pos:cur,kind:'飞跃'});flags.push('飞跃');
+      cur=29;route.push({pos:cur,kind:'飞跃'});flags.push('飞跃');
     }else{
       cur+=4;route.push({pos:cur,kind:'跳格'});flags.push('跳格');
     }
