@@ -17,13 +17,13 @@ const ROLE=['?',...Object.keys(ROLE_INFO)];
 const roleName=role=>ROLE_INFO[role]?.name||'随机角色';
 const roleMark=role=>ROLE_INFO[role]?.mark||'?';
 const COLOR=[
- {name:'蓝',key:'blue',hex:'#41a7f5',start:40,base:[10,678]},
- {name:'黄',key:'yellow',hex:'#f6c945',start:27,base:[690,678]},
- {name:'绿',key:'green',hex:'#58c26a',start:1,base:[10,22]},
- {name:'红',key:'red',hex:'#ef5350',start:14,base:[690,22]}
+ {name:'蓝',key:'blue',hex:'#41a7f5',start:39,base:[10,678]},
+ {name:'黄',key:'yellow',hex:'#f6c945',start:26,base:[690,678]},
+ {name:'绿',key:'green',hex:'#58c26a',start:0,base:[10,22]},
+ {name:'红',key:'red',hex:'#ef5350',start:13,base:[690,22]}
 ];
 const ORDER=[3,1,0,2];
-const TURN=48, LANE=49, GOAL=54;
+const TURN=49, LANE=50, GOAL=55;
 const RING=[
  [92,292],[150,275],[200,275],[258,292],[292,258],[275,200],[275,150],[292,92],
  [350,75],[400,75],[450,75],[500,75],[550,75],[608,92],[625,150],[625,200],
