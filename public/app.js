@@ -40,6 +40,8 @@ const LANES={
  yellow:[[750,450],[700,450],[650,450],[600,450],[550,450],[500,450]]
 };
 const PADS=[[64,64],[136,64],[64,136],[136,136]];
+// A symmetric launch marker for every team, outside the board art.
+const LAUNCH_POINT=[[275,924],[924,625],[-24,275],[625,-24]];
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const ORIENT={1:[0,0],2:[90,0],3:[0,-90],4:[0,90],5:[-90,0],6:[0,180]};
 let code='',authToken='',events=null,state=null,lastSequence=-1,lastRollSeq=-1,lastMoveSeq=-1;
@@ -227,6 +229,7 @@ $('gameBack').onclick=exitSetup;
 $('resultHome').onclick=exitSetup;
 $('restart').onclick=()=>action({type:'replay'});
 function point(color,pos,id){
+ if(pos===-2)return LAUNCH_POINT[color];
  if(pos===-1){const [x,y]=COLOR[color].base;return [x+PADS[id][0],y+PADS[id][1]];}
  if(pos===GOAL)return LANES[COLOR[color].key][GOAL-LANE];
  if(pos<LANE)return RING[(COLOR[color].start+pos)%52];
@@ -236,6 +239,10 @@ function svg(tag,props,parent){const el=document.createElementNS(NS,tag);Object.
 function piecePosition(p,id){if(animPiece?.color===p.color&&animPiece?.id===id)return animPiece.pos;return p.pieces[id];}
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
+ for(let color=0;color<4;color++){
+  const [cx,cy]=LAUNCH_POINT[color];
+  svg('circle',{cx,cy,r:24,fill:'#fffdf9',stroke:COLOR[color].hex,'stroke-width':4,class:'launch-circle','pointer-events':'none'},node);
+ }
  const packs=new Map();
  for(const p of state.players)for(let id=0;id<4;id++){
   const pos=piecePosition(p,id);if(pos===GOAL)continue;
@@ -304,7 +311,7 @@ async function animateRoll(n){const own=++rollSerial;const cube=$('cube');const 
 async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start};drawPieces();
  for(const step of move.path){await sleep(step.kind==='飞跃'?260:step.kind==='跳格'?230:140);if(mine!==animationSerial)return;animPiece.pos=step.pos;drawPieces();}
  await sleep(100);if(mine!==animationSerial)return;animPiece=null;drawPieces();
- if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,x/900*100))}%`;b.style.top=`${y/900*100}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
+ if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
 function rules(){dialog('游戏说明','每方四枚棋子，掷出6才可起飞且可再掷一次。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；骰点直接落在飞跃格时飞跃后再跳4格，先跳到飞跃格时只飞跃，不会再次跳格。经过虚线交叉处能撞落对方终点道棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。');}
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
