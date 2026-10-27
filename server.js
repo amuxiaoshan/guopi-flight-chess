@@ -238,7 +238,15 @@ function roll(room,p){
     if(room.phase==='playing'&&room.roundPhase==='choose'&&room.turn===p.color){
       const options=room.options.map(id=>{
         const pl=projection(p.pieces[id],room.die);let score=(pl.to===GOAL?300:pl.to*1.2)+(p.pieces[id]<0?30:0);
-        const at=keyOnBoard(p.color,pl.to);if(at!=null)for(const other of room.players)if(other.color!==p.color&&other.pieces.some(v=>keyOnBoard(other.color,v)===at))score+=230;
+        const at=keyOnBoard(p.color,pl.to);
+        if(at!==null){
+          const mine=1+p.pieces.filter((v,j)=>j!==id&&keyOnBoard(p.color,v)===at).length;
+          for(const other of room.players)if(other.color!==p.color){
+            const defenders=other.pieces.filter(v=>keyOnBoard(other.color,v)===at).length;
+            if(defenders===mine)score+=230*defenders;
+            else if(defenders>0)score+=12; // shared cell, but no equal-count hit yet
+          }
+        }
         score+=rand(20);return {id,score};
       }).sort((a,b)=>b.score-a.score);
       performMove(room,p,options[0].id);
