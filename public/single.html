@@ -59,6 +59,11 @@ input,select{font-size:16px}
 
 /* Offline uses the same screens as the multiplayer page. */
 #lobby .roommeta,#lobby .shareSettings{display:none!important}
+.seatlabels{min-width:0;flex:1}
+.seatlabels .seatrole{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seatlabels .seatname{color:#878b91;font-size:11px;margin-top:2px}
+.playerchip .seatrole{font-weight:600}
+.playerchip small{overflow:hidden;text-overflow:ellipsis;padding:0 2px}
 </style></head>
 <body><main>
 <section id="welcome" class="screen active">
@@ -108,6 +113,8 @@ input,select{font-size:16px}
 'use strict';
 const colors = ['blue','yellow','green','red'];
 const roles = ['A','B','C','D','E','F','G','H'];
+const roleNames={A:'阿禾',B:'澄',C:'勒尔斯',D:'麦冬',E:'波波亚',F:'麻特',G:'塔努利安',H:'亚洛'};
+const roleName=role=>roleNames[role]||'随机角色';
 const startIndex = [40,27,1,14];
 // 每方从起飞格 (pos=0) 到本色转弯格 (pos=48)；
 // pos=49..54 对应本色终点道的6个可见格子，第6格(54)即为终点；没有隐藏的第7格。
@@ -217,7 +224,7 @@ function performMove(room,p,id){
   const hit=captureAlong(room,p,plan);
   room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die};
   room.roundPhase='moving';room.options=[];
-  room.note=hit?`${p.role} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${p.role} 到达终点`:plan.flags.join('、')||`${p.role} 前进 ${room.die} 格`;
+  room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
   if(p.pieces.every(v=>v===GOAL)&&!p.finished){p.finished=true;room.finishOrder.push(p.color);}
   publish(room);
   const duration = Math.max(450,plan.path.length*150+220);
@@ -371,7 +378,19 @@ window.OfflineEngine={
 // Flight chess front end: one shared room state for humans, and server-driven AI.
 const $ = id => document.getElementById(id);
 const NS='http://www.w3.org/2000/svg';
-const ROLE=['?','A','B','C','D','E','F','G','H'];
+const ROLE_INFO={
+ A:{name:'阿禾',mark:'禾',work:'某初新芽'},
+ B:{name:'澄',mark:'澄',work:'某初新芽'},
+ C:{name:'勒尔斯',mark:'勒',work:'某初新芽'},
+ D:{name:'麦冬',mark:'麦',work:'某初新芽'},
+ E:{name:'波波亚',mark:'波',work:'半次研究'},
+ F:{name:'麻特',mark:'麻',work:'半次研究'},
+ G:{name:'塔努利安',mark:'塔',work:'半次研究'},
+ H:{name:'亚洛',mark:'亚',work:'半次研究'}
+};
+const ROLE=['?',...Object.keys(ROLE_INFO)];
+const displayRole=role=>ROLE_INFO[role]?.name||'随机角色';
+const roleMark=role=>ROLE_INFO[role]?.mark||'?';
 const COLOR=[
  {name:'蓝',key:'blue',hex:'#41a7f5',start:40,base:[10,678]},
  {name:'黄',key:'yellow',hex:'#f6c945',start:27,base:[690,678]},
@@ -473,16 +492,16 @@ function renderLobby(){
  renderShareSettings();
  const self=me();if(!self)return;
  roleIndex=Math.max(0,ROLE.indexOf(self.role));
- $('myToken').textContent=self.role;
+ $('myToken').textContent=roleMark(self.role);
  $('myToken').style.borderColor=COLOR[self.color].hex;
- $('myRole').textContent=self.role==='?'?'随机角色':`角色 ${self.role}`;
+ $('myRole').textContent=self.role==='?'?'随机角色':`${displayRole(self.role)} · ${ROLE_INFO[self.role].work}`;
  const used=state.players.filter(p=>p.kind==='human'&&p.color!==self.color).map(p=>p.color);
  $('myColors').innerHTML=ORDER.map(c=>swatchButton(c,c===self.color,used.includes(c))).join('');
  $('myColors').querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>action({type:'select',color:Number(b.dataset.color)}));
  const specs=[...state.players.map(p=>({...p,fromBot:false})),...state.bots.map((b,i)=>({name:`电脑 ${i+1}`,role:b.role,color:b.color,kind:'ai',fromBot:true}))];
  $('seats').replaceChildren();
  specs.sort((a,b)=>a.color-b.color).forEach(p=>{
-  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}</div>`;
+  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(displayRole(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}</div></div>`;
   $('seats').appendChild(div);
  });
  $('botControl').hidden=!state.host;
@@ -498,7 +517,7 @@ function renderLobby(){
   const humanColors=state.players.map(p=>p.color);
   $('botEditors').innerHTML=state.bots.map((b,i)=>{
    const occupied=state.bots.filter((_,j)=>i!==j).map(x=>x.color).concat(humanColors);
-   return `<div class="botrow"><span>电脑${i+1}</span><select data-role-index="${i}" aria-label="电脑${i+1}角色">${ROLE.map(r=>`<option value="${r}" ${r===b.role?'selected':''}>${r==='?'?'随机角色':`角色 ${r}`}</option>`).join('')}</select><select data-color-index="${i}" aria-label="电脑${i+1}颜色">${ORDER.map(c=>`<option value="${c}" ${c===b.color?'selected':''} ${occupied.includes(c)?'disabled':''}>${COLOR[c].name}色</option>`).join('')}</select></div>`;
+   return `<div class="botrow"><span>电脑${i+1}</span><select data-role-index="${i}" aria-label="电脑${i+1}角色">${ROLE.map(r=>`<option value="${r}" ${r===b.role?'selected':''}>${r==='?'?'随机角色':displayRole(r)}</option>`).join('')}</select><select data-color-index="${i}" aria-label="电脑${i+1}颜色">${ORDER.map(c=>`<option value="${c}" ${c===b.color?'selected':''} ${occupied.includes(c)?'disabled':''}>${COLOR[c].name}色</option>`).join('')}</select></div>`;
   }).join('');
   $('botEditors').querySelectorAll('[data-role-index]').forEach(el=>el.onchange=()=>action({type:'bot-config',index:Number(el.dataset.roleIndex),role:el.value}));
   $('botEditors').querySelectorAll('[data-color-index]').forEach(el=>el.onchange=()=>action({type:'bot-config',index:Number(el.dataset.colorIndex),color:Number(el.value)}));
@@ -565,7 +584,7 @@ function drawPieces(){
   if(canSelect){svg('circle',{r:27,fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
    svg('path',{d:'M-9 -44 L9 -44 L0 -31Z',fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
   svg('circle',{r:19,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':5},group);
-  const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':19,fill:'#272a30'},group);letter.textContent=p.role;
+  const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':19,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
   if(canSelect){group.onclick=()=>action({type:'move',piece:id});group.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();action({type:'move',piece:id});}};}
  }
 }
@@ -573,7 +592,7 @@ function renderGame(){
  if(!state)return;
  $('playerStrip').innerHTML=ORDER.map(c=>state.players.find(p=>p.color===c)).filter(Boolean).map(p=>{
  const count=p.pieces.filter(v=>v===GOAL).length;
- return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}"><div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div title="${escapeHTML(p.name)}" class="seatname">${escapeHTML(p.name)}</div><small>${count}/4 已到终点</small></div>`;
+ return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}"><div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div title="${escapeHTML(displayRole(p.role))}" class="seatname seatrole">${escapeHTML(displayRole(p.role))}</div><small title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</small><small>${count}/4 已到终点</small></div>`;
  }).join('');
  const turnPlayer=state.players.find(p=>p.color===state.turn);
  const mine=state.viewerColor===state.turn;
