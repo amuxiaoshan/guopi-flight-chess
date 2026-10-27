@@ -109,36 +109,52 @@ function projection(pos,roll){
     route.push({pos:cur,kind:'骰点'});
   }
   if(cur===GOAL) return {path:route,to:cur,flags:['到达终点']};
-  // 同色跳4格；到自己转弯格(48)为止，不把跳格延伸到终点道。
+  // Each move may activate only one bonus: a same-color hop or a flight.
+  // If a hop lands on the flight tile, do not activate the flight a second time.
   if(cur>=4&&cur<TURN&&cur%4===0){
     if(cur===16){
-      // 骰点直接落在飞跃格：飞跃，再跳4格。
       cur=28;route.push({pos:cur,kind:'飞跃'});flags.push('飞跃');
-      cur=32;route.push({pos:cur,kind:'跳格'});flags.push('跳格');
     }else{
-      // 从同色格跳到飞跃格：只飞跃，不再补一次4格跳。
       cur+=4;route.push({pos:cur,kind:'跳格'});flags.push('跳格');
-      if(cur===16){cur=28;route.push({pos:cur,kind:'飞跃'});flags.push('飞跃');}
     }
   }
   return {path:route,to:cur,flags};
 }
 // 特殊移动的停留格都应判撞；飞跃途中经过对方的终点道也应撞机。
 const crossedLane = [3,2,1,0]; // 蓝飞越红、黄飞越绿、绿飞越黄、红飞越蓝
-function captureAlong(room,actor,plan){
+// Landing on a stack does not destroy it until both sides have the same
+// number of pieces on that cell. A 1-v-1 encounter is an equal-count capture.
+function captureAlong(room,actor,plan,movingPieceId){
   let hits=0;
   const diceEnd=plan.path.findLastIndex(step=>step.kind==='骰点');
   for(let k=0;k<plan.path.length;k++){
     const step=plan.path[k];
     if(step.kind==='骰点'&&k!==diceEnd)continue;
     const square=keyOnBoard(actor.color,step.pos);
+    if(square===null)continue;
+    // The mover has already been stored at plan.to; count it virtually at
+    // every intermediate landing as well, without double-counting it.
+    const ownAtStop=1+actor.pieces.reduce((count,pos,i)=>
+      count+(i!==movingPieceId&&keyOnBoard(actor.color,pos)===square?1:0),0);
     for(const enemy of room.players){
       if(enemy.color===actor.color)continue;
+      const landed=[];
+      const crossing=[];
       for(let i=0;i<4;i++){
         const ep=enemy.pieces[i];
-        const landing=square!==null&&keyOnBoard(enemy.color,ep)===square;
-        const crossing=step.kind==='飞跃'&&enemy.color===crossedLane[actor.color]&&ep===LANE+2;
-        if(landing||crossing){enemy.pieces[i]=-1;hits++;}
+        if(keyOnBoard(enemy.color,ep)===square)landed.push(i);
+        else if(step.kind==='飞跃'&&enemy.color===crossedLane[actor.color]&&ep===LANE+2)crossing.push(i);
+      }
+      // Normal co-location: 1 vs 2 coexists, 2 vs 2 captures both.
+      if(landed.length&&ownAtStop===landed.length){
+        for(const i of landed)enemy.pieces[i]=-1;
+        hits+=landed.length;
+      }
+      // Flying across an opponent's goal lane is a separate interception.
+      // One flying piece can intercept one lane piece, but not a whole stack.
+      if(crossing.length===1){
+        enemy.pieces[crossing[0]]=-1;
+        hits++;
       }
     }
   }
@@ -188,7 +204,7 @@ function performMove(room,p,id){
   if(room.phase!=='playing'||room.roundPhase!=='choose'||p.color!==room.turn||!legalMove(room,p,id))fail('现在不能移动这枚棋子');
   const plan=projection(p.pieces[id],room.die);if(!plan)fail('无效移动');
   const start=p.pieces[id];p.pieces[id]=plan.to;
-  const hit=captureAlong(room,p,plan);
+  const hit=captureAlong(room,p,plan,id);
   room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die,dialogue:hit?collisionLine(p.role):''};
   room.roundPhase='moving';room.options=[];
   room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
