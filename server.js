@@ -25,6 +25,8 @@ function localAddresses(){
 
 const colors = ['blue','yellow','green','red'];
 const roles = ['A','B','C','D','E','F','G','H'];
+const roleNames = {A:'阿禾',B:'澄',C:'勒尔斯',D:'麦冬',E:'波波亚',F:'麻特',G:'塔努利安',H:'亚洛'};
+const roleName = role => roleNames[role] || role;
 const startIndex = [40,27,1,14];
 // 每方从起飞格 (pos=0) 到本色转弯格 (pos=48)；
 // pos=49..54 对应本色终点道的6个可见格子，第6格(54)即为终点；没有隐藏的第7格。
@@ -145,7 +147,7 @@ function performMove(room,p,id){
   const hit=captureAlong(room,p,plan);
   room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die};
   room.roundPhase='moving';room.options=[];
-  room.note=hit?`${p.role} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${p.role} 到达终点`:plan.flags.join('、')||`${p.role} 前进 ${room.die} 格`;
+  room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
   if(p.pieces.every(v=>v===GOAL)&&!p.finished){p.finished=true;room.finishOrder.push(p.color);}
   publish(room);
   const duration = Math.max(450,plan.path.length*150+220);
