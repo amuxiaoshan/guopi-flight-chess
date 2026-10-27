@@ -246,14 +246,14 @@ function drawPieces(){
  for(const pack of packs.values())for(let i=0;i<pack.length;i++){
   const {p,id,x,y}=pack[i];const count=pack.length;
   const colCount=Math.ceil(Math.sqrt(count));
-  const dx=count===1?0:(i%colCount-(colCount-1)/2)*10;
-  const dy=count===1?0:(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*10;
+  const dx=count===1?0:(i%colCount-(colCount-1)/2)*12;
+  const dy=count===1?0:(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*12;
   const canSelect=state.viewerColor===p.color&&state.turn===p.color&&state.roundPhase==='choose'&&state.options.length>1&&state.options.includes(id)&&!animPiece;
   const group=svg('g',{transform:`translate(${x+dx} ${y+dy})`,class:canSelect?'piece available':'piece',role:canSelect?'button':'img','aria-label':`${p.role} 第${id+1}枚棋子`,tabindex:canSelect?'0':'-1'},node);
-  if(canSelect){svg('circle',{r:27,fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
-   svg('path',{d:'M-9 -44 L9 -44 L0 -31Z',fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
-  svg('circle',{r:19,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':5},group);
-  const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':19,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
+  if(canSelect){svg('circle',{r:32,fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
+   svg('path',{d:'M-10 -52 L10 -52 L0 -38Z',fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
+  svg('circle',{r:24,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':5},group);
+  const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':22,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
   if(canSelect){group.onclick=()=>action({type:'move',piece:id});group.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();action({type:'move',piece:id});}};}
  }
 }
