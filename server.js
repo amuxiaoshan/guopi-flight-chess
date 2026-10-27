@@ -104,6 +104,7 @@ function legalMove(r,p,pieceId){
 function publicState(room,viewer){
   const me=room.players.find(p=>p.token===viewer);
   return {code:room.code,phase:room.phase,roundPhase:room.roundPhase,host:room.host===viewer,
+    hostColor:room.players.find(p=>p.token===room.host)?.color??null,closeReason:room.closeReason||null,
     viewerColor:me?me.color:null,viewerName:me?me.name:null,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
     players:room.players.map(p=>({color:p.color,role:p.role,name:p.name,kind:p.kind,pieces:p.pieces,finished:p.finished,connected:p.kind==='ai'||p.connections>0})),
     finishOrder:room.finishOrder,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
@@ -113,6 +114,15 @@ function sendOne(room,conn){
   try{conn.res.write(`data: ${JSON.stringify(publicState(room,conn.token))}\n\n`);}catch{room.clients.delete(conn);}
 }
 function publish(room){room.seq++;room.lastActivity=Date.now();for(const conn of room.clients)sendOne(room,conn);}
+// Deliver a final SSE state before removing the room, so all open pages return home.
+function closeRoom(room,reason){
+  if(room.phase==='closed')return;
+  room.phase='closed';room.roundPhase='closed';room.closeReason=reason;room.note=reason;
+  publish(room);
+  rooms.delete(room.code);
+  for(const conn of room.clients){try{conn.res.end();}catch{}}
+  room.clients.clear();
+}
 function fail(message, status=400){ const e=new Error(message);e.status=status;throw e; }
 function findRoom(code){const r=rooms.get(cleanCode(code));if(!r)fail('房间不存在或已经过期',404);return r;}
 function auth(room,userToken){const p=room.players.find(x=>x.kind==='human'&&x.token===userToken);if(!p)fail('没有加入该房间，请重新通过邀请码进入',403);return p;}
@@ -229,18 +239,45 @@ function handleAction(data){
     }
     arrangeBots(r);publish(r);return {ok:true};
   }
+  if(type==='transfer-host'){
+    if(r.mode!=='online'||r.phase!=='playing')fail('只能在多人对局中移交房主');
+    if(r.host!==p.token)fail('只有房主可以移交房主身份');
+    const targetColor=Number(data.targetColor);
+    if(!Number.isInteger(targetColor))fail('无效的玩家座位');
+    const target=r.players.find(x=>x.kind==='human'&&x.color===targetColor&&x.token!==p.token);
+    if(!target)fail('请选择其他真人玩家，不能将房主交给电脑');
+    r.host=target.token;
+    r.note=`${p.name} 已将房主移交给 ${target.name}`;
+    publish(r);
+    return {ok:true};
+  }
   if(type==='leave'){
-    if(r.phase!=='lobby')fail('对局中请关闭页面或稍后再退出');
+    const wasHost=r.host===p.token;
     r.players=r.players.filter(x=>x!==p);
-    if(r.host===data.token){
-      const newHost=r.players.find(x=>x.kind==='human');
-      if(newHost)r.host=newHost.token;
+    r.finishOrder=r.finishOrder.filter(c=>c!==p.color);
+    if(wasHost){
+      closeRoom(r,'房主已退出，房间已解散。');
+      return {ok:true,closed:true};
     }
-    arrangeBots(r);
-    const lost=[...r.clients].filter(c=>c.token===data.token);
-    for(const conn of lost){r.clients.delete(conn);try{conn.res.end();}catch{}}
-    if(!r.players.length){rooms.delete(r.code);for(const conn of r.clients){try{conn.res.end();}catch{}}r.clients.clear();}
-    else publish(r);
+    if(r.players.filter(x=>x.kind==='human').length<=1){
+      closeRoom(r,'房间只剩一位真人玩家，已自动结束。');
+      return {ok:true,closed:true};
+    }
+    for(const conn of [...r.clients].filter(c=>c.token===p.token)){
+      r.clients.delete(conn);
+      try{conn.res.end();}catch{}
+    }
+    if(r.phase==='lobby'){
+      arrangeBots(r);
+      r.note=`${p.name} 已退出房间`;
+      publish(r);
+    }else if(r.phase==='playing'&&r.turn===p.color){
+      r.note=`${p.name} 已退出，轮到下一位`;
+      advance(r);
+    }else{
+      r.note=`${p.name} 已退出游戏`;
+      publish(r);
+    }
     return {ok:true};
   }
   if(type==='reset'){
@@ -301,7 +338,7 @@ const server=http.createServer(async(req,res)=>{
     res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache,no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});
     const c={res,token};r.clients.add(c);player.connections++;sendOne(r,c);publish(r);
     const heartbeat=setInterval(()=>{try{res.write(': ping\n\n');}catch{}},20000);
-    res.on('close',()=>{clearInterval(heartbeat);r.clients.delete(c);player.connections=Math.max(0,player.connections-1);publish(r);});
+    res.on('close',()=>{clearInterval(heartbeat);r.clients.delete(c);player.connections=Math.max(0,player.connections-1);if(rooms.get(r.code)===r&&r.phase!=='closed')publish(r);});
     return;
   }
   if(req.method==='GET'){
