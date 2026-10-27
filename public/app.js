@@ -31,13 +31,13 @@ const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const ORIENT={1:[0,0],2:[90,0],3:[0,-90],4:[0,90],5:[-90,0],6:[0,180]};
 let code='',authToken='',events=null,state=null,lastSequence=-1,lastRollSeq=-1,lastMoveSeq=-1;
 let roleIndex=0, animPiece=null, animationSerial=0, rollSerial=0, toastTimer, busy=false;
-let myRoomMode='',viewerToken=null;
+let myRoomMode='',viewerToken=null,pendingExit=false,checkingRoom=false;
 let lanAddresses=[],lanFetched=false;
 const sleep=ms=>new Promise(res=>setTimeout(res,ms));
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 function screen(id){document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('active',el.id===id));}
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600);}
-function dialog(title,body,confirm=null){$('dlgTitle').textContent=title;$('dlgText').textContent=body;$('dialog').classList.add('open');$('dlgConfirm').hidden=!confirm;$('dlgConfirm').onclick=confirm?()=>{$('dialog').classList.remove('open');confirm();}:null;}
+function dialog(title,body,confirm=null){$('dlgTitle').textContent=title;$('dlgText').textContent=body;$('dlgClose').textContent=confirm?'取消':'知道了';$('dialog').classList.add('open');$('dlgConfirm').hidden=!confirm;$('dlgConfirm').onclick=confirm?()=>{$('dialog').classList.remove('open');confirm();}:null;}
 $('dlgClose').onclick=()=>$('dialog').classList.remove('open');
 $('dialog').onclick=e=>{if(e.target===$('dialog'))$('dialog').classList.remove('open');};
 async function api(payload){const response=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,code,token:authToken})});let data;try{data=await response.json();}catch{throw Error('服务端没有返回正确数据');}if(!response.ok)throw Error(data.error||'操作失败');return data;}
@@ -49,12 +49,23 @@ async function action(payload){
  }catch(e){toast(e.message);return null;}
 }
 function resetConnection(){if(events){events.close();events=null;}animationSerial++;rollSerial++;state=null;lastSequence=-1;lastMoveSeq=-1;lastRollSeq=-1;animPiece=null;}
-function home(){resetConnection();code='';authToken='';myRoomMode='';screen('welcome');history.replaceState(null,'',location.pathname);}
+function home(){resetConnection();code='';authToken='';myRoomMode='';pendingExit=false;screen('welcome');history.replaceState(null,'',location.pathname);}
 function connect(){
  resetConnection();
  events=new EventSource(`/api/events?code=${encodeURIComponent(code)}&token=${encodeURIComponent(authToken)}`);
  events.onmessage=e=>{try{receive(JSON.parse(e.data));}catch(err){console.error(err);toast('更新房间画面时出了问题');}};
- events.onerror=()=>{if(events && events.readyState===EventSource.CLOSED)toast('房间连接中断，请刷新页面重新加入');};
+ events.onerror=async()=>{
+   if(!code||!authToken||checkingRoom)return;
+   const oldCode=code,oldToken=authToken;
+   checkingRoom=true;
+   try{
+     const r=await fetch(`/api/state?code=${encodeURIComponent(oldCode)}&token=${encodeURIComponent(oldToken)}`,{cache:'no-store'});
+     if((r.status===403||r.status===404)&&code===oldCode&&authToken===oldToken&&!pendingExit){
+       sessionStorage.removeItem('flight_room');
+       home();dialog('房间已结束','房间不存在或你已退出，已经返回主页。');
+     }
+   }catch{}finally{checkingRoom=false;}
+ };
 }
 async function enter(mode){const result=await action({type:'create',name:$('nickname').value,mode});if(!result)return;code=result.code;authToken=result.token;myRoomMode=mode;sessionStorage.setItem('flight_room',JSON.stringify({code,authToken}));connect();if(result.state)receive(result.state);}
 async function join(){const c=$('joinCode').value.toUpperCase().trim();if(c.length!==6){toast('请输入六位房间码');return;}const result=await actionWithCode({type:'join',code:c,name:$('nickname').value});if(!result)return;code=result.code;authToken=result.token;myRoomMode='online';sessionStorage.setItem('flight_room',JSON.stringify({code,authToken}));connect();if(result.state)receive(result.state);}
@@ -94,6 +105,13 @@ $('joinCode').oninput=e=>{e.target.value=e.target.value.replace(/[^a-z0-9]/ig,''
 function me(){return state?.players.find(p=>p.kind==='human'&&p.color===state.viewerColor);}
 function receive(next){
  if(next.seq<=lastSequence)return;
+ if(next.phase==='closed'){
+   const leaving=pendingExit,reason=next.closeReason||'房间已结束。';
+   sessionStorage.removeItem('flight_room');
+   home();
+   if(!leaving)dialog('房间已结束',reason);
+   return;
+ }
  const first=lastSequence<0;
  state=next;lastSequence=next.seq;
  if(first){roleIndex=Math.max(0,ROLE.indexOf(me()?.role??'?'));}
@@ -127,7 +145,7 @@ function renderLobby(){
  const specs=[...state.players.map(p=>({...p,fromBot:false})),...state.bots.map((b,i)=>({name:`电脑 ${i+1}`,role:b.role,color:b.color,kind:'ai',fromBot:true}))];
  $('seats').replaceChildren();
  specs.sort((a,b)=>a.color-b.color).forEach(p=>{
-  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}</div>`;
+  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${p.kind==='human'&&p.color===state.hostColor?'（房主）':''}</div>`;
   $('seats').appendChild(div);
  });
  $('botControl').hidden=!state.host;
@@ -170,18 +188,27 @@ $('copyInvite').onclick=async()=>{
  catch{dialog('邀请朋友',`房间码：${code}\n邀请链接：${msg}\n长按链接文字复制。请确保双方连接同一 Wi-Fi，或服务器有公网地址。`);}
 };
 async function leaveRoom(){
- if(state?.phase==='lobby')await action({type:'leave'});
- sessionStorage.removeItem('flight_room');home();
+ if(!code||!authToken){home();return;}
+ pendingExit=true;
+ const result=await action({type:'leave'});
+ if(!result){pendingExit=false;return;}
+ sessionStorage.removeItem('flight_room');
+ home();
 }
-// Solo mode has no human seat to release: go straight home from setup.
 function isSoloMode(){return state?.mode==='solo'||myRoomMode==='solo';}
-function exitSetup(){if(isSoloMode())leaveRoom();else dialog('返回主页','离开房间后会释放自己的座位。',leaveRoom);}
+function exitSetup(){
+ if(isSoloMode()){leaveRoom();return;}
+ if(state?.host){
+   dialog('房主退出房间？','你是房主，离开后整个房间会解散，所有玩家都会返回主页。想保留房间，请先在对局中点击其他真人玩家的头像移交房主。',leaveRoom);
+ }else{
+   const humans=state?.players.filter(p=>p.kind==='human').length||0;
+   dialog('退出房间？',humans<=2?'退出后房间只剩一位真人玩家，所有人将自动返回主页。':'你会离开本局，其余玩家可以继续游戏。',leaveRoom);
+ }
+}
 $('leave').onclick=exitSetup;
 $('exitLobby').onclick=exitSetup;
-$('gameBack').onclick=()=>isSoloMode()
-  ? dialog('退出本局？','返回主页会放弃当前这局的棋盘进度。',home)
-  : dialog('退出对局','退出只会关闭当前页面。回到房间链接可以继续本局；其他人的游戏不会中断。',home);
-$('resultHome').onclick=()=>{sessionStorage.removeItem('flight_room');home();};
+$('gameBack').onclick=exitSetup;
+$('resultHome').onclick=exitSetup;
 $('restart').onclick=()=>action({type:'replay'});
 function point(color,pos,id){
  if(pos===-1){const [x,y]=COLOR[color].base;return [x+PADS[id][0],y+PADS[id][1]];}
@@ -218,8 +245,21 @@ function renderGame(){
  if(!state)return;
  $('playerStrip').innerHTML=ORDER.map(c=>state.players.find(p=>p.color===c)).filter(Boolean).map(p=>{
  const count=p.pieces.filter(v=>v===GOAL).length;
- return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}"><div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div title="${escapeHTML(p.name)}" class="seatname">${escapeHTML(p.name)}</div><small>${count}/4 已到终点</small></div>`;
+ const canTransfer=state.host&&state.mode==='online'&&p.kind==='human'&&p.color!==state.viewerColor;
+ const avatar=canTransfer
+  ? `<button type="button" class="tiny host-transfer-avatar" style="--color:${COLOR[p.color].hex}" data-transfer-color="${p.color}" aria-label="移交房主给${escapeHTML(p.name)}" title="点击头像移交房主">${escapeHTML(p.role)}</button>`
+  : `<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div>`;
+ const hostMark=p.kind==='human'&&p.color===state.hostColor?'<span class="host-tag">房主</span>':'';
+ return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}">${avatar}<div title="${escapeHTML(p.name)}" class="seatname">${escapeHTML(p.name)}</div><small>${count}/4 已到终点</small>${hostMark}</div>`;
  }).join('');
+ $('playerStrip').querySelectorAll('[data-transfer-color]').forEach(button=>{
+   button.onclick=()=>{
+     const target=state?.players.find(p=>p.kind==='human'&&p.color===Number(button.dataset.transferColor));
+     if(!state?.host||state.phase!=='playing'||!target)return;
+     dialog('确认移交房主？',`将房主身份交给「${target.name}」吗？移交后对方拥有房主权限；如果对方退出，整个房间将解散。`,()=>action({type:'transfer-host',targetColor:target.color}));
+   };
+ });
+ $('gameHint').textContent=state.host&&state.mode==='online'&&state.players.filter(p=>p.kind==='human').length>1?'房主可点击其他玩家的头像移交房主 · 轮到自己时掷骰':'轮到自己时掷骰 · 可选的棋子会显示光圈和小三角';
  const turnPlayer=state.players.find(p=>p.color===state.turn);
  const mine=state.viewerColor===state.turn;
  const phases={roll:mine?'点击骰子':'等待掷骰',choose:state.options?.length>1?(mine?'点击发光的棋子':'正在选择棋子'):'唯一可动棋子自动前进',moving:'正在移动棋子',rolling:'骰子结果已出'};
