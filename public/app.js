@@ -4,14 +4,14 @@ const $ = id => document.getElementById(id);
 const NS='http://www.w3.org/2000/svg';
 // Stable game identifiers A-H map to Shanshan's OCs. Names/marks are display-only.
 const ROLE_INFO={
- A:{name:'阿禾',mark:'禾',work:'某初新芽'},
- B:{name:'澄',mark:'澄',work:'某初新芽'},
- C:{name:'勒尔斯',mark:'勒',work:'某初新芽'},
- D:{name:'麦冬',mark:'麦',work:'某初新芽'},
- E:{name:'波波亚',mark:'波',work:'半次研究'},
- F:{name:'麻特',mark:'麻',work:'半次研究'},
- G:{name:'塔努利安',mark:'塔',work:'半次研究'},
- H:{name:'亚洛',mark:'亚',work:'半次研究'}
+ A:{name:'青栖禾',mark:'禾'},
+ B:{name:'澄',mark:'澄'},
+ C:{name:'勒尔斯',mark:'勒'},
+ D:{name:'麦冬',mark:'麦'},
+ E:{name:'波波亚',mark:'波'},
+ F:{name:'麻特',mark:'麻'},
+ G:{name:'塔努利安',mark:'塔'},
+ H:{name:'亚洛',mark:'亚'}
 };
 const ROLE=['?',...Object.keys(ROLE_INFO)];
 const roleName=role=>ROLE_INFO[role]?.name||'随机角色';
@@ -154,7 +154,7 @@ function renderLobby(){
  roleIndex=Math.max(0,ROLE.indexOf(self.role));
  $('myToken').textContent=roleMark(self.role);
  $('myToken').style.borderColor=COLOR[self.color].hex;
- $('myRole').textContent=self.role==='?'?'随机角色':`${roleName(self.role)} · ${ROLE_INFO[self.role].work}`;
+ $('myRole').textContent=self.role==='?'?'随机角色':roleName(self.role);
  const used=state.players.filter(p=>p.kind==='human'&&p.color!==self.color).map(p=>p.color);
  $('myColors').innerHTML=ORDER.map(c=>swatchButton(c,c===self.color,used.includes(c))).join('');
  $('myColors').querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>action({type:'select',color:Number(b.dataset.color)}));
