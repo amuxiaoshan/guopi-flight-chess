@@ -132,7 +132,10 @@ function receive(next){
 function swatchButton(i,chosen,disabled){return `<button type="button" class="colorButton ${chosen?'chosen':''}" style="--color:${COLOR[i].hex}" title="${COLOR[i].name}色" aria-label="${COLOR[i].name}色" data-color="${i}" ${disabled?'disabled':''}></button>`;}
 function renderLobby(){
  if(!state)return;
- $('codeText').textContent=state.code;
+ // A solo game uses an internal room identifier, but has no invite workflow.
+ document.querySelector('#lobby .roommeta').hidden=state.mode==='solo';
+ document.querySelector('#lobby .nav strong').textContent=state.mode==='solo'?'单人准备':'房间准备';
+ $('codeText').textContent=state.mode==='solo'?'':state.code;
  renderShareSettings();
  const self=me();if(!self)return;
  roleIndex=Math.max(0,ROLE.indexOf(self.role));
@@ -145,7 +148,7 @@ function renderLobby(){
  const specs=[...state.players.map(p=>({...p,fromBot:false})),...state.bots.map((b,i)=>({name:`电脑 ${i+1}`,role:b.role,color:b.color,kind:'ai',fromBot:true}))];
  $('seats').replaceChildren();
  specs.sort((a,b)=>a.color-b.color).forEach(p=>{
-  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${p.kind==='human'&&p.color===state.hostColor?'（房主）':''}</div>`;
+  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(p.role)}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${state.mode!=='solo'&&p.kind==='human'&&p.color===state.hostColor?'（房主）':''}</div>`;
   $('seats').appendChild(div);
  });
  $('botControl').hidden=!state.host;
