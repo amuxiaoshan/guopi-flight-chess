@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f9f8f5">
+<title>适得棋所！ · 撞棋留言测试</title>
+<style>
+:root{font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#30323a;background:#f4f4f1}
+*{box-sizing:border-box}
+body{margin:0;padding:18px 12px 40px}
+main{width:min(100%,470px);margin:auto;background:#fff;border:1px solid #e6e7e9;border-radius:21px;padding:20px 17px 23px;box-shadow:0 9px 35px #0000000a}
+a{color:#5375a1;text-decoration:none;font-size:13px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:24px;letter-spacing:.08em;font-weight:650;margin:18px 0 6px}
+.sub{font-size:13px;color:#7b8190;line-height:1.65;margin:0 0 17px}
+label{display:block;font-size:13px;color:#666b73;margin-bottom:7px}
+select{appearance:auto;width:100%;padding:12px 11px;background:#fbfbfc;border:1px solid #dcdfe5;border-radius:11px;color:#282d35;font-size:15px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 8px;font-size:12px;color:#747982}
+.dot{display:inline-block;width:11px;height:11px;border-radius:100%;vertical-align:-1px;margin-right:4px}
+.boardwrap{position:relative;width:100%;aspect-ratio:1;margin:3px auto 12px;border-radius:12px;overflow:hidden;background:#fcfaf7}
+.boardart,#pieces{position:absolute;inset:0;width:100%;height:100%}
+#pieces{pointer-events:none}
+.bubble{position:absolute;left:68%;top:59%;transform:translate(-50%,-100%);width:max-content;max-width:74%;padding:10px 13px;background:#fffdfc;border:2px solid #ef7872;border-radius:13px;box-shadow:0 7px 22px #3e30301c;display:none;z-index:3;pointer-events:none;text-align:left}
+.bubble::after{content:"";position:absolute;bottom:-9px;left:72%;width:13px;height:13px;transform:rotate(45deg);background:#fffdfc;border-right:2px solid #ef7872;border-bottom:2px solid #ef7872}
+.bubble strong{display:block;color:#c85859;font-size:11px;margin-bottom:4px}
+.bubble span{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.controls{display:grid;grid-template-columns:1.5fr 1fr;gap:9px;margin:13px 0}
+button{font:inherit;border-radius:11px;padding:13px 9px;cursor:pointer;border:1px solid #dfe1e5;min-height:48px}
+button:disabled{opacity:.55;cursor:default}
+#roll{background:#f3dfc2;color:#45382c;border-color:#ecd1a9;font-weight:650}
+#reset{background:#f9f9f9;color:#626776}
+.dice{display:flex;align-items:center;justify-content:center;gap:12px;border-radius:12px;background:#f9f9f7;min-height:52px;margin:4px 0 10px}
+.dice strong{font-size:28px;line-height:1}
+.dice span{font-size:12px;color:#737780}
+#result{font-size:13px;line-height:1.7;padding:11px 12px;border:1px solid #ececef;background:#fafafc;border-radius:11px;min-height:65px}
+.small{font-size:12px;line-height:1.7;color:#8d9199;margin:11px 0 0}
+@media(max-width:360px){main{padding:15px 11px}h1{font-size:21px}.bubble{max-width:78%}}
+</style>
+</head>
+<body>
+<main>
+<header><a href="/">‹ 返回正式游戏</a><span style="font-size:11px;color:#9a9fa9">独立测试页</span></header>
+<h1>撞棋留言测试</h1>
+<p class="sub">固定位置 · 固定掷出 3 点 · 红方撞回蓝方。选一个OC，看看撞棋时会说什么。</p>
+<label for="role">撞棋角色</label>
+<select id="role">
+<option value="A">青栖禾</option>
+<option value="B">澄</option>
+<option value="C">勒尔斯</option>
+<option value="D">麦冬</option>
+<option value="E">波波亚</option>
+<option value="F">麻特</option>
+<option value="G">塔努利安</option>
+<option value="H">亚洛</option>
+</select>
+<div class="legend"><span><i class="dot" style="background:#ef5350"></i>红方：你选的角色</span><span><i class="dot" style="background:#41a7f5"></i>蓝方：固定对手</span></div>
+<div class="boardwrap">
+<img class="boardart" src="/board.svg" alt="适得棋所！飞行棋棋盘">
+<svg id="pieces" viewBox="0 0 900 900" aria-label="固定撞棋棋子演示"></svg>
+<div id="bubble" class="bubble" role="status" aria-live="polite"><strong id="speaker"></strong><span id="speech"></span></div>
+</div>
+<div class="dice"><strong id="dice" aria-label="骰子">⚀</strong><span>固定骰点：3 · 每次试撞后自动准备下一次</span></div>
+<div class="controls"><button id="roll" type="button">掷出 3 点 · 撞棋</button><button id="reset" type="button">重置位置</button></div>
+<div id="result" role="status" aria-live="polite">准备完成：红方再走 3 格，就会撞上蓝方。</div>
+<p class="small">每个角色的三句留言依次循环，方便逐句检查。这里只演示碰撞台词，不会创建房间或影响正式对局。</p>
+</main>
+<script>
+"use strict";
+const ROLES={
+  A:{name:"青栖禾",mark:"禾",lines:["哎哎？ Σ(⊙▽⊙","真是抱歉…","下次要注意路况哦。( ᴗˬᴗ)"]},
+  B:{name:"澄",mark:"澄",lines:["抱歉抱歉——！","不好意思哦！(人˘ㅂ˘)","芜湖~此处已占领！"]},
+  C:{name:"勒尔斯",mark:"勒",lines:["现在这地方归我了","闪开点。","下次注意些吧。"]},
+  D:{name:"麦冬",mark:"麦",lines:["借过！(●´∀)σ","对不住咯","抱歉！但我不改。"]},
+  E:{name:"波波亚",mark:"波",lines:["当当——漂亮的一击！","Prefect~(ˆoˆ)","吃！(" + String.fromCharCode(96) + "▽´๑)"]},
+  F:{name:"麻特",mark:"麻",lines:["注意点。","下次加把劲。","运气不错…"]},
+  G:{name:"塔努利安",mark:"塔",lines:["哇我不是故意的、祝你加油！(;ﾟдﾟ)","嗯……不错的决策。","呃，下一个更好……？(ﾟ◇ﾟﾉ)ﾉ"]},
+  H:{name:"亚洛",mark:"亚",lines:["……嗯？","不好意思。","我下次注意。"]}
+};
+const el=id=>document.getElementById(id);
+const NS="http://www.w3.org/2000/svg";
+const path=[[825,400],[825,450],[825,500],[825,550]]; // red pos 8->11: three ordinary moves, no special jump
+const opponentStart=[825,550]; // blue pos 37 = same absolute square as red pos 11
+const opponentBase=[74,742];
+let attacker,defender,role="A",nextLine=0,running=false,completed=false,version=0;
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function makePiece(mark,stroke,where){
+  const g=document.createElementNS(NS,"g");el("pieces").append(g);
+  const ring=document.createElementNS(NS,"circle");
+  for(const [k,v] of Object.entries({r:24,fill:"#fff",stroke,"stroke-width":5}))ring.setAttribute(k,v);
+  g.append(ring);
+  const label=document.createElementNS(NS,"text");
+  for(const [k,v] of Object.entries({x:0,y:1,"font-size":22,"text-anchor":"middle","dominant-baseline":"central",fill:"#272a30"}))label.setAttribute(k,v);
+  label.textContent=mark;g.append(label);move(g,where);
+  return {g,label};
+}
+function move(piece,position){piece.setAttribute("transform","translate("+position[0]+" "+position[1]+")");}
+function hideBubble(){el("bubble").style.display="none";}
+function stage(){
+  version++;running=false;completed=false;el("roll").disabled=false;
+  const data=ROLES[role];
+  if(!attacker){
+    attacker=makePiece(data.mark,"#ef5350",path[0]);
+    defender=makePiece("对","#41a7f5",opponentStart);
+  }
+  attacker.label.textContent=data.mark;move(attacker.g,path[0]);move(defender.g,opponentStart);
+  el("dice").textContent="⚀";hideBubble();
+  el("result").textContent="准备完成："+data.name+" 再走 3 格，就会撞上蓝方。下一次播放第 "+(nextLine+1)+" / 3 句。";
+}
+async function collide(){
+  if(running)return;
+  if(completed)stage();
+  running=true;el("roll").disabled=true;
+  const myVersion=version;el("dice").textContent="⚂";
+  el("result").textContent=ROLES[role].name+" 掷出 3 点，开始移动……";
+  for(let i=1;i<path.length;i++){
+    await pause(250);
+    if(myVersion!==version)return;
+    move(attacker.g,path[i]);
+  }
+  await pause(220);
+  if(myVersion!==version)return;
+  move(defender.g,opponentBase); // capture sends the blue piece to its base
+  const data=ROLES[role],line=data.lines[nextLine];
+  el("speaker").textContent=data.name+" · 第 "+(nextLine+1)+" 句";
+  el("speech").textContent=line;el("bubble").style.display="block";
+  el("result").textContent="撞棋成功！蓝方棋子已回基地。"+data.name+"：「"+line+"」";
+  nextLine=(nextLine+1)%3;completed=true;running=false;el("roll").disabled=false;
+  el("roll").textContent="再撞一次 · 下一句";
+}
+el("role").addEventListener("change",e=>{role=e.target.value;nextLine=0;el("roll").textContent="掷出 3 点 · 撞棋";stage();});
+el("roll").addEventListener("click",collide);
+el("reset").addEventListener("click",()=>{el("roll").textContent="掷出 3 点 · 撞棋";stage();});
+stage();
+</script>
+</body>
+</html>
