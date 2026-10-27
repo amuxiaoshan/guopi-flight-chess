@@ -167,9 +167,9 @@ const COLLISION_LINES = {
 };
 const collisionLine = role => {const lines=COLLISION_LINES[role]||[];return lines.length?lines[rand(lines.length)]:'';};
 const startIndex = [40,27,1,14];
-// 每方从起飞格 (pos=0) 到本色转弯格 (pos=48)；
+// 每方先以掷出6从基地进入棋盘外起飞点 (pos=-2)，下次掷骰才从起飞点进入棋盘格 (pos=0起)；
 // pos=49..54 对应本色终点道的6个可见格子，第6格(54)即为终点；没有隐藏的第7格。
-const TURN=48, LANE=49, GOAL=54, RING_SIZE=52;
+const LAUNCH=-2, TURN=48, LANE=49, GOAL=54, RING_SIZE=52;
 // Four corners are exclusive. A role is cosmetic and may repeat.
 const emptyColors = r => [0,1,2,3].filter(c=>!r.players.some(p=>p.kind==='human'&&p.color===c));
 function arrangeBots(r){
@@ -190,15 +190,15 @@ const roomCode = () => Array.from({length:6},()=>codeChars[rand(codeChars.length
 const cleanCode = s => String(s||'').toUpperCase().trim();
 const cleanName = s => String(s||'').trim().slice(0,16).replace(/[<>]/g,'') || '玩家';
 const current = (r) => r.players.find(p=>p.color===r.turn);
-const available = (p,n) => p.pieces.map((pc,i)=>pc===GOAL?-1:(pc>=0||n===6?i:-1)).filter(i=>i>=0);
+const available = (p,n) => p.pieces.map((pc,i)=>pc===GOAL?-1:(pc>=0||pc===LAUNCH||n===6?i:-1)).filter(i=>i>=0);
 // 实际格位统一由颜色+位置决定；转弯后不可继续沿外圈绕回起点。
 const keyOnBoard = (color,pos) => pos>=0&&pos<LANE ? `ring:${(startIndex[color]+pos)%RING_SIZE}`
   :pos>=LANE&&pos<GOAL ? `lane:${color}:${pos}` : null;
 function projection(pos,roll){
-  if(pos===GOAL || !Number.isInteger(roll) || roll<1 || roll>6 || pos<-1 || pos>GOAL) return null;
-  if(pos===-1) return roll===6?{path:[{pos:0,kind:'起飞'}],to:0,flags:['起飞']}:null;
-  let cur=pos,dir=1;
-  const route=[],flags=[];
+  if(pos===GOAL || !Number.isInteger(roll) || roll<1 || roll>6 || pos<LAUNCH || pos>GOAL) return null;
+  if(pos===-1) return roll===6?{path:[{pos:LAUNCH,kind:'起飞'}],to:LAUNCH,flags:['进入起飞点']}:null;
+  let cur=pos===LAUNCH?-1:pos,dir=1;
+  const route=[],flags=pos===LAUNCH?['从起飞点进入棋盘']:[];
   for(let i=0;i<roll;i++){
     if(cur===GOAL)dir=-1;
     cur+=dir;
