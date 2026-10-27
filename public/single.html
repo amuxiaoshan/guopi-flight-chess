@@ -115,6 +115,50 @@ const colors = ['blue','yellow','green','red'];
 const roles = ['A','B','C','D','E','F','G','H'];
 const roleNames={A:'青栖禾',B:'澄',C:'勒尔斯',D:'麦冬',E:'波波亚',F:'麻特',G:'塔努利安',H:'亚洛'};
 const roleName=role=>roleNames[role]||'随机角色';
+// Choose one authoritative line for each collision. Newlines only format long lines.
+const COLLISION_LINES = {
+ "A": [
+  "哎哎？ Σ(⊙▽⊙",
+  "真是抱歉…",
+  "下次要注意路况哦。\n( ᴗˬᴗ)"
+ ],
+ "B": [
+  "抱歉抱歉——！",
+  "不好意思哦！(人˘ㅂ˘)",
+  "芜湖~此处已占领！"
+ ],
+ "C": [
+  "现在这地方归我了",
+  "闪开点。",
+  "下次注意些吧。"
+ ],
+ "D": [
+  "借过！(●´∀)σ",
+  "对不住咯",
+  "抱歉！但我不改。"
+ ],
+ "E": [
+  "当当——漂亮的一击！",
+  "Prefect~(ˆoˆ)",
+  "吃！(`▽´๑)"
+ ],
+ "F": [
+  "注意点。",
+  "下次加把劲。",
+  "运气不错…"
+ ],
+ "G": [
+  "哇我不是故意的、\n祝你加油！(;ﾟдﾟ)",
+  "嗯……不错的决策。",
+  "呃，下一个更好……？\n(ﾟ◇ﾟﾉ)ﾉ"
+ ],
+ "H": [
+  "……嗯？",
+  "不好意思。",
+  "我下次注意。"
+ ]
+};
+const collisionLine = role => {const lines=COLLISION_LINES[role]||[];return lines.length?lines[rand(lines.length)]:'';};
 const startIndex = [40,27,1,14];
 // 每方从起飞格 (pos=0) 到本色转弯格 (pos=48)；
 // pos=49..54 对应本色终点道的6个可见格子，第6格(54)即为终点；没有隐藏的第7格。
@@ -222,7 +266,7 @@ function performMove(room,p,id){
   const plan=projection(p.pieces[id],room.die);if(!plan)fail('无效移动');
   const start=p.pieces[id];p.pieces[id]=plan.to;
   const hit=captureAlong(room,p,plan);
-  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die};
+  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die,dialogue:hit?collisionLine(p.role):''};
   room.roundPhase='moving';room.options=[];
   room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
   if(p.pieces.every(v=>v===GOAL)&&!p.finished){p.finished=true;room.finishOrder.push(p.color);}
