@@ -41,7 +41,7 @@ const LANES={
 };
 const PADS=[[64,64],[136,64],[64,136],[136,136]];
 // A symmetric launch marker for every team, outside the board art.
-const LAUNCH_POINT=[[275,924],[924,625],[-24,275],[625,-24]];
+const LAUNCH_POINT=[[275,899],[899,625],[1,275],[625,1]];
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const ORIENT={1:[0,0],2:[90,0],3:[0,-90],4:[0,90],5:[-90,0],6:[0,180]};
 let code='',authToken='',events=null,state=null,lastSequence=-1,lastRollSeq=-1,lastMoveSeq=-1;
@@ -241,7 +241,7 @@ function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
  for(let color=0;color<4;color++){
   const [cx,cy]=LAUNCH_POINT[color];
-  svg('circle',{cx,cy,r:24,fill:'#fffdf9',stroke:COLOR[color].hex,'stroke-width':4,class:'launch-circle','pointer-events':'none'},node);
+  svg('circle',{cx,cy,r:18,fill:'#fffdf9',stroke:COLOR[color].hex,'stroke-width':3,class:'launch-circle','pointer-events':'none'},node);
  }
  const packs=new Map();
  for(const p of state.players)for(let id=0;id<4;id++){
