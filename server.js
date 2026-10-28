@@ -169,7 +169,7 @@ function publicState(room,viewer){
     hostColor:room.players.find(p=>p.token===room.host)?.color??null,closeReason:room.closeReason||null,
     viewerColor:me?me.color:null,viewerName:me?me.name:null,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
     players:room.players.map(p=>({color:p.color,role:p.role,name:p.name,kind:p.kind,pieces:p.pieces,finished:p.finished,auto:!!p.auto,connected:p.kind==='ai'||p.connections>0})),
-    finishOrder:room.finishOrder,vote:room.vote?{id:room.vote.id,agreed:Object.values(room.vote.responses).filter(Boolean).length,required:room.players.filter(p=>p.kind==='human'&&!p.auto).length,myVote:me&&Object.hasOwn(room.vote.responses,me.color)?room.vote.responses[me.color]:null}:null,voteHandled:!!room.voteHandled,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
+    finishOrder:room.finishOrder,vote:room.vote?{id:room.vote.id,agreed:room.players.filter(p=>p.kind==='human'&&!p.auto&&room.vote.responses[p.color]===true).length,required:room.players.filter(p=>p.kind==='human'&&!p.auto).length,myVote:me&&Object.hasOwn(room.vote.responses,me.color)?room.vote.responses[me.color]:null}:null,voteHandled:!!room.voteHandled,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
     note:room.note,canStart:room.phase==='lobby'&&room.players.length+room.bots.length>=2};
 }
 function sendOne(room,conn){
@@ -214,6 +214,19 @@ function settleMatch(room,reason='本局结束'){
  room.finishOrder.push(...remaining.map(p=>p.color));
  room.vote=null;room.phase='over';room.roundPhase='over';room.note=reason;
  publish(room);
+}
+function handOverToComputer(room,p){
+ p.auto=true;p.autoReason='left';
+ if(closeIfOnlyComputers(room))return {ok:true,closed:true};
+ for(const conn of [...room.clients].filter(c=>c.token===p.token)){
+  room.clients.delete(conn);try{conn.res.end();}catch{}
+ }
+ room.note=`${p.name} 已退出，由电脑暂时操作`;
+ publish(room);
+ if(room.roundPhase==='vote')finishVoteIfReady(room);
+ else if(room.turn===p.color&&room.roundPhase==='roll')runAI(room);
+ else if(room.turn===p.color&&room.roundPhase==='choose')autoChoose(room,p);
+ return {ok:true,auto:true};
 }
 function finishVoteIfReady(room){
  if(!room.vote||room.roundPhase!=='vote')return;
@@ -380,9 +393,10 @@ function handleAction(data){
     if(r.phase!=='playing'||r.roundPhase!=='vote'||!r.vote)fail('现在无需投票');
     if(p.auto)fail('托管中的玩家不需要投票');
     if(typeof data.agree!=='boolean')fail('请选择是否继续');
-    r.vote.responses[p.color]=data.agree;
-    if(!data.agree)settleMatch(r,'有玩家选择结束比赛，按当前进度结算');
-    else{publish(r);finishVoteIfReady(r);}
+    // A disagreement only removes this participant; it never ends everyone else's match.
+    if(!data.agree)return handOverToComputer(r,p);
+    r.vote.responses[p.color]=true;
+    publish(r);finishVoteIfReady(r);
     return {ok:true};
   }
   if(type==='end-early'){
@@ -430,17 +444,7 @@ function handleAction(data){
   }
   if(type==='leave'){
     if(r.phase==='playing'){
-      p.auto=true;p.autoReason='left';
-      if(closeIfOnlyComputers(r))return {ok:true,closed:true};
-      for(const conn of [...r.clients].filter(c=>c.token===p.token)){
-        r.clients.delete(conn);try{conn.res.end();}catch{}
-      }
-      r.note=`${p.name} 已离开，由电脑暂时操作`;
-      publish(r);
-      if(r.roundPhase==='vote')finishVoteIfReady(r);
-      else if(r.turn===p.color&&r.roundPhase==='roll')runAI(r);
-      else if(r.turn===p.color&&r.roundPhase==='choose')autoChoose(r,p);
-      return {ok:true,auto:true};
+      return handOverToComputer(r,p);
     }
     const wasHost=r.host===p.token;
     r.players=r.players.filter(x=>x!==p);
