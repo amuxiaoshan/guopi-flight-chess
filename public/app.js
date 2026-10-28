@@ -500,6 +500,13 @@ function point(color,pos,id){
 }
 function svg(tag,props,parent){const el=document.createElementNS(NS,tag);Object.entries(props).forEach(([k,v])=>el.setAttribute(k,String(v)));parent.appendChild(el);return el;}
 function piecePosition(p,id){if(animPiece?.color===p.color&&animPiece?.id===id)return animPiece.pos;return p.pieces[id];}
+// Popoya artwork is displayed at its original aspect ratio, with no altered pixels.
+// A larger screen-space token is necessary for the detailed chibi face to be readable.
+const POPOYA_SIZE_KEY='guopi_popoya_piece_diameter';
+function popoyaDiameter(){
+ try{const n=Number(localStorage.getItem(POPOYA_SIZE_KEY));if(Number.isFinite(n)&&n>=64&&n<=108)return n;}catch{}
+ return 104; // Original version was 48; default now more than twice as large.
+}
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
  for(let color=0;color<4;color++){
@@ -507,6 +514,7 @@ function drawPieces(){
   svg('circle',{cx,cy,r:18,fill:'#fffdf9',stroke:COLOR[color].hex,'stroke-width':3,class:'launch-circle','pointer-events':'none'},node);
  }
  const packs=new Map();
+ const popoyaSize=popoyaDiameter();
  for(const p of state.players)for(let id=0;id<4;id++){
   const pos=piecePosition(p,id);if(pos===GOAL)continue;
   const [x,y]=point(p.color,pos,id),key=`${x},${y}`;
@@ -517,14 +525,17 @@ function drawPieces(){
   const {p,id,x,y}=pack[i];const count=pack.length;
   const colCount=Math.ceil(Math.sqrt(count));
   // Mixed-color stacks share the same square; give each piece a visible seat.
-  const packed=count>1, spacing=packed?30:0;
-  const radius=packed?17:24, border=packed?3.5:5, fontSize=packed?16:22;
+  const packed=count>1, hasPopoya=pack.some(item=>item.p.role==='E');
+  const spacing=packed?(hasPopoya?44:30):0;
+  const radius=p.role==='E'?(packed?Math.round(popoyaSize*.29):popoyaSize/2):(packed?17:24);
+  const border=p.role==='E'?(packed?4:5):(packed?3.5:5), fontSize=packed?16:22;
   const dx=packed?(i%colCount-(colCount-1)/2)*spacing:0;
   const dy=packed?(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*spacing:0;
   const canSelect=state.viewerColor===p.color&&state.turn===p.color&&state.roundPhase==='choose'&&state.options.length>1&&state.options.includes(id)&&!animPiece;
   const group=svg('g',{transform:`translate(${x+dx} ${y+dy})`,class:canSelect?'piece available':'piece',role:canSelect?'button':'img','aria-label':`${p.role} 第${id+1}枚棋子`,tabindex:canSelect?'0':'-1'},node);
-  if(canSelect){svg('circle',{r:packed?23:32,fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
-   svg('path',{d:packed?'M-8 -42 L8 -42 L0 -29Z':'M-10 -52 L10 -52 L0 -38Z',fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
+  if(canSelect){svg('circle',{r:radius+(packed?7:8),fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
+   const peak=-(radius+(packed?16:28));
+   svg('path',{d:`M-10 ${peak} L10 ${peak} L0 ${peak+14}Z`,fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
   if(p.role==='E'){
    // Original 256x256 PNG remains unedited: white outline and transparency intact.
    // The team color fills only the circular game-piece background.
