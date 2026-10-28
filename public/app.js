@@ -525,8 +525,15 @@ function drawPieces(){
   const group=svg('g',{transform:`translate(${x+dx} ${y+dy})`,class:canSelect?'piece available':'piece',role:canSelect?'button':'img','aria-label':`${p.role} 第${id+1}枚棋子`,tabindex:canSelect?'0':'-1'},node);
   if(canSelect){svg('circle',{r:packed?23:32,fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
    svg('path',{d:packed?'M-8 -42 L8 -42 L0 -29Z':'M-10 -52 L10 -52 L0 -38Z',fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
-  svg('circle',{r:radius,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':border},group);
-  const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
+  if(p.role==='E'){
+   // Original 256x256 PNG remains unedited: white outline and transparency intact.
+   // The team color fills only the circular game-piece background.
+   svg('circle',{r:radius,fill:COLOR[p.color].hex,stroke:COLOR[p.color].hex,'stroke-width':border},group);
+   svg('image',{href:'/assets/popoya-original.png',x:-radius,y:-radius,width:radius*2,height:radius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
+  }else{
+   svg('circle',{r:radius,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':border},group);
+   const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
+  }
   if(canSelect){group.onclick=()=>action({type:'move',piece:id});group.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();action({type:'move',piece:id});}};}
  }
 }
