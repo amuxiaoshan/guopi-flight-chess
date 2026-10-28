@@ -880,8 +880,9 @@ function showRankDetails(){
  $('rankDetail').innerHTML=order.map((color,index)=>{
   const p=state.players.find(x=>x.color===color);if(!p)return '';
   const goals=p.pieces.filter(v=>v===GOAL).length;
-  const distance=p.pieces.reduce((n,x)=>n+(x===GOAL?0:x===-1?57:x===-2?56:GOAL-x),0);
-  return `<div class="rank-line"><strong>第 ${index+1} 名 · ${escapeHTML(displayRole(p.role))}</strong><small>${goals}/4 到终点 · 剩余 ${distance} 格</small></div>`;
+  const distances=p.pieces.filter(x=>x!==GOAL).map(x=>x===-1?57:x===-2?56:GOAL-x);
+  const distance=distances.length?Math.min(...distances):0;
+  return `<div class="rank-line"><strong>第 ${index+1} 名 · ${escapeHTML(displayRole(p.role))}</strong><small>${goals}/4 到终点 · 最近距终点 ${distance} 格</small></div>`;
  }).join('');
 }
 
@@ -1027,6 +1028,7 @@ function renderGame(){
  const count=p.pieces.filter(v=>v===GOAL).length;
  return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}"><div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div title="${escapeHTML(displayRole(p.role))}" class="seatname seatrole">${escapeHTML(displayRole(p.role))}</div><small title="${escapeHTML(p.name)}">${p.kind==='ai'?'电脑':p.auto?'电脑托管':escapeHTML(p.name)}</small><small>${count}/4 已到终点</small></div>`;
  }).join('');
+ if(self?.finished&&state.voteHandled&&state.roundPhase!=='vote')document.querySelector('.bottomgame').textContent='你已完成全部棋子，当前正在观战。';
  const turnPlayer=state.players.find(p=>p.color===state.turn);
  const mine=state.viewerColor===state.turn;
  const phases={roll:mine?'点击骰子':'等待掷骰',choose:state.options?.length>1?(mine?'点击发光的棋子':'正在选择棋子'):'唯一可动棋子自动前进',moving:'正在移动棋子',rolling:'正在掷骰子'};
