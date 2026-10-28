@@ -322,7 +322,7 @@ function roll(room,p){
 function runAI(room){
   if(room.phase!=='playing'||room.roundPhase!=='roll')return;
   const p=current(room);if(p&&isAutomated(p))setTimeout(()=>{
-    if(room.phase==='playing'&&room.roundPhase==='roll'&&room.turn===p.color)roll(room,p);
+    if(room.phase==='playing'&&room.roundPhase==='roll'&&room.turn===p.color&&isAutomated(p))roll(room,p);
   },850);
 }
 function createRoom(name,mode='online'){
