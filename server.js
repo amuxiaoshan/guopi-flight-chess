@@ -168,8 +168,8 @@ function publicState(room,viewer){
   return {code:room.code,phase:room.phase,roundPhase:room.roundPhase,host:room.host===viewer,
     hostColor:room.players.find(p=>p.token===room.host)?.color??null,closeReason:room.closeReason||null,
     viewerColor:me?me.color:null,viewerName:me?me.name:null,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
-    players:room.players.map(p=>({color:p.color,role:p.role,name:p.name,kind:p.kind,pieces:p.pieces,finished:p.finished,connected:p.kind==='ai'||p.connections>0})),
-    finishOrder:room.finishOrder,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
+    players:room.players.map(p=>({color:p.color,role:p.role,name:p.name,kind:p.kind,pieces:p.pieces,finished:p.finished,auto:!!p.auto,connected:p.kind==='ai'||p.connections>0})),
+    finishOrder:room.finishOrder,vote:room.vote?{id:room.vote.id,agreed:Object.values(room.vote.responses).filter(Boolean).length,required:room.players.filter(p=>p.kind==='human'&&!p.auto).length,myVote:me&&Object.hasOwn(room.vote.responses,me.color)?room.vote.responses[me.color]:null}:null,voteHandled:!!room.voteHandled,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
     note:room.note,canStart:room.phase==='lobby'&&room.players.length+room.bots.length>=2};
 }
 function sendOne(room,conn){
@@ -189,12 +189,62 @@ function fail(message, status=400){ const e=new Error(message);e.status=status;t
 function findRoom(code){const r=rooms.get(cleanCode(code));if(!r)fail('房间不存在或已经过期',404);return r;}
 function auth(room,userToken){const p=room.players.find(x=>x.kind==='human'&&x.token===userToken);if(!p)fail('没有加入该房间，请重新通过邀请码进入',403);return p;}
 function reply(res,code,obj){res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':'same-origin'});res.end(JSON.stringify(obj));}
+
+const isAutomated = p => p.kind==='ai'||!!p.auto;
+function distanceLeft(pos){return pos===GOAL?0:pos===-1?57:pos===LAUNCH?56:Math.max(0,GOAL-pos);}
+function settleMatch(room,reason='本局结束'){
+ if(room.phase==='over')return;
+ const remaining=room.players.filter(p=>!room.finishOrder.includes(p.color)).sort((a,b)=>{
+  const ga=a.pieces.filter(x=>x===GOAL).length,gb=b.pieces.filter(x=>x===GOAL).length;
+  if(ga!==gb)return gb-ga;
+  const da=a.pieces.reduce((sum,x)=>sum+distanceLeft(x),0);
+  const db=b.pieces.reduce((sum,x)=>sum+distanceLeft(x),0);
+  if(da!==db)return da-db;
+  return b.pieces.reduce((max,x)=>Math.max(max,x),-1)-a.pieces.reduce((max,x)=>Math.max(max,x),-1)||a.color-b.color;
+ });
+ room.finishOrder.push(...remaining.map(p=>p.color));
+ room.vote=null;room.phase='over';room.roundPhase='over';room.note=reason;
+ publish(room);
+}
+function finishVoteIfReady(room){
+ if(!room.vote||room.roundPhase!=='vote')return;
+ const active=room.players.filter(p=>p.kind==='human'&&!p.auto);
+ if(!active.length){settleMatch(room,'没有真人继续观战，本局提前结算');return;}
+ if(active.every(p=>room.vote.responses[p.color]===true)){
+  room.vote=null;room.note='全员同意，继续比赛';
+  advance(room);
+ }
+}
+function startContinueVote(room){
+ if(room.voteHandled||room.finishOrder.length!==1)return false;
+ room.voteHandled=true;
+ room.vote={id:room.seq+1,responses:{}};
+ room.roundPhase='vote';room.die=null;room.options=[];
+ room.note='第一名已产生，等待真人玩家决定是否继续比赛';
+ publish(room);
+ const voteId=room.vote.id;
+ setTimeout(()=>{
+  if(room.phase==='playing'&&room.roundPhase==='vote'&&room.vote?.id===voteId)
+   settleMatch(room,'投票超时，本局提前结算');
+ },45000);
+ finishVoteIfReady(room);
+ return true;
+}
+function autoChoose(room,p){
+ setTimeout(()=>{
+  if(room.phase==='playing'&&room.roundPhase==='choose'&&room.turn===p.color&&isAutomated(p)&&room.options.length){
+   const best=room.options.map(id=>{
+    const plan=projection(p.pieces[id],room.die);
+    return {id,score:plan.to===GOAL?1000:plan.to===LAUNCH?100:plan.to};
+   }).sort((a,b)=>b.score-a.score)[0];
+   performMove(room,p,best.id);
+  }
+ },550);
+}
+
 function advance(room){
   if(room.phase!=='playing')return;
-  if(room.finishOrder.length>=room.players.length-1){
-    for(const p of room.players)if(!room.finishOrder.includes(p.color))room.finishOrder.push(p.color);
-    room.phase='over';room.roundPhase='over';room.note='本局结束';publish(room);return;
-  }
+  if(room.finishOrder.length===room.players.length){settleMatch(room);return;}
   let next=room.turn;
   for(let i=0;i<4;i++){next=(next+1)%4;const candidate=room.players.find(p=>p.color===next);if(candidate&&!candidate.finished)break;}
   room.turn=next;room.roundPhase='roll';room.die=null;room.options=[];room.sixStreak=0;
@@ -215,7 +265,8 @@ function performMove(room,p,id){
   const duration = Math.max(850,travelMs+530);
   setTimeout(()=>{
     if(room.phase!=='playing'||room.roundPhase!=='moving')return;
-    if(room.finishOrder.length>=room.players.length-1){advance(room);return;}
+    if(startContinueVote(room))return;
+    if(room.finishOrder.length===room.players.length){advance(room);return;}
     if(room.die===6&&!p.finished){room.roundPhase='roll';room.options=[];room.note=`${p.name} 可以再掷一次`;publish(room);runAI(room);}
     else advance(room);
   },duration);
@@ -245,7 +296,7 @@ function roll(room,p){
       return;
     }
     room.roundPhase='choose';publish(room);
-    if(p.kind==='ai')setTimeout(()=>{
+    if(isAutomated(p))setTimeout(()=>{
       if(room.phase==='playing'&&room.roundPhase==='choose'&&room.turn===p.color){
       const options=room.options.map(id=>{
         const pl=projection(p.pieces[id],room.die);let score=(pl.to===GOAL?300:pl.to*1.2)+(p.pieces[id]<0?30:0);
@@ -270,7 +321,7 @@ function roll(room,p){
 }
 function runAI(room){
   if(room.phase!=='playing'||room.roundPhase!=='roll')return;
-  const p=current(room);if(p&&p.kind==='ai')setTimeout(()=>{
+  const p=current(room);if(p&&isAutomated(p))setTimeout(()=>{
     if(room.phase==='playing'&&room.roundPhase==='roll'&&room.turn===p.color)roll(room,p);
   },850);
 }
@@ -278,7 +329,7 @@ function createRoom(name,mode='online'){
   if(rooms.size>=ROOM_LIMIT)fail('试玩服务器的房间数量已满');
   let code;do{code=roomCode();}while(rooms.has(code));
   const t=token(); const host={token:t,name:cleanName(name||'房主'),color:3,role:'?',kind:'human',pieces:Array(4).fill(-1),finished:false,connections:0};
-  const r={code,host:t,mode:mode==='solo'?'solo':'online',bots:[{color:0,role:'?'}],botCount:1,players:[host],phase:'lobby',roundPhase:'lobby',turn:0,die:null,options:[],finishOrder:[],sixStreak:0,seq:0,lastRoll:null,lastMove:null,note:'等待其他玩家加入',clients:new Set(),lastActivity:Date.now()};rooms.set(code,r);
+  const r={code,host:t,vote:null,voteHandled:false,mode:mode==='solo'?'solo':'online',bots:[{color:0,role:'?'}],botCount:1,players:[host],phase:'lobby',roundPhase:'lobby',turn:0,die:null,options:[],finishOrder:[],sixStreak:0,seq:0,lastRoll:null,lastMove:null,note:'等待其他玩家加入',clients:new Set(),lastActivity:Date.now()};rooms.set(code,r);
   return {code,token:t};
 }
 function handleAction(data){
@@ -293,8 +344,30 @@ function handleAction(data){
     arrangeBots(r);publish(r);
     return {code:r.code,token:t};
   }
+  if(type==='resume'){
+    const r=findRoom(data.code),p=auth(r,data.token);
+    p.auto=false;
+    r.note=`${p.name} 已重新接管棋子`;
+    if(r.roundPhase==='vote'){publish(r);}
+    else{publish(r);}
+    return {code:r.code,token:p.token,ok:true};
+  }
   const r=findRoom(data.code), p=auth(r,data.token);
   if(type==='state')return {state:publicState(r,data.token)};
+  if(type==='vote'){
+    if(r.phase!=='playing'||r.roundPhase!=='vote'||!r.vote)fail('现在无需投票');
+    if(p.auto)fail('托管中的玩家不需要投票');
+    if(typeof data.agree!=='boolean')fail('请选择是否继续');
+    r.vote.responses[p.color]=data.agree;
+    if(!data.agree)settleMatch(r,'有玩家选择结束比赛，按当前进度结算');
+    else{publish(r);finishVoteIfReady(r);}
+    return {ok:true};
+  }
+  if(type==='end-early'){
+    if(r.phase!=='playing')fail('本局已经结束');
+    settleMatch(r,'本局提前结束，按当前进度结算');
+    return {ok:true};
+  }
   if(type==='select'){
     if(r.phase!=='lobby')fail('开局后不能切换角色或颜色');
     if(typeof data.role==='string'&& (data.role==='?'||roles.includes(data.role)))p.role=data.role;
@@ -334,6 +407,18 @@ function handleAction(data){
     return {ok:true};
   }
   if(type==='leave'){
+    if(r.phase==='playing'){
+      p.auto=true;
+      for(const conn of [...r.clients].filter(c=>c.token===p.token)){
+        r.clients.delete(conn);try{conn.res.end();}catch{}
+      }
+      r.note=`${p.name} 已离开，由电脑暂时操作`;
+      publish(r);
+      if(r.roundPhase==='vote')finishVoteIfReady(r);
+      else if(r.turn===p.color&&r.roundPhase==='roll')runAI(r);
+      else if(r.turn===p.color&&r.roundPhase==='choose')autoChoose(r,p);
+      return {ok:true,auto:true};
+    }
     const wasHost=r.host===p.token;
     r.players=r.players.filter(x=>x!==p);
     r.finishOrder=r.finishOrder.filter(c=>c!==p.color);
@@ -368,7 +453,7 @@ function handleAction(data){
     r.players=r.players.filter(pl=>pl.kind==='human').map(pl=>({...pl,pieces:Array(4).fill(-1),finished:false}));
     arrangeBots(r);
     r.phase='lobby';r.roundPhase='lobby';r.turn=0;r.die=null;r.options=[];
-    r.finishOrder=[];r.sixStreak=0;r.lastRoll=null;r.lastMove=null;r.note='返回准备界面';
+    r.finishOrder=[];r.vote=null;r.voteHandled=false;r.sixStreak=0;r.lastRoll=null;r.lastMove=null;r.note='返回准备界面';
     publish(r);return {ok:true};
   }
   if(type==='start'||type==='replay'){
@@ -379,12 +464,12 @@ function handleAction(data){
     const humans=r.players.filter(pl=>pl.kind==='human');
     if(humans.length+r.bots.length<2)fail('至少需要两方玩家或电脑');
     r.players=humans;
-    for(const pl of humans){pl.pieces=Array(4).fill(-1);pl.finished=false;if(pl.role==='?')pl.role=roles[rand(roles.length)];}
-    for(const spec of r.bots)r.players.push({token:null,name:`电脑 ${colors[spec.color]}`,color:spec.color,role:spec.role==='?'?roles[rand(roles.length)]:spec.role,kind:'ai',pieces:Array(4).fill(-1),finished:false,connections:1});
-    r.players.sort((a,b)=>a.color-b.color);r.phase='playing';r.roundPhase='roll';r.turn=r.players[0].color;r.die=null;r.sixStreak=0;r.options=[];r.finishOrder=[];r.lastRoll=null;r.lastMove=null;r.note='游戏开始';publish(r);runAI(r);return {ok:true};
+    for(const pl of humans){pl.pieces=Array(4).fill(-1);pl.finished=false;pl.auto=false;if(pl.role==='?')pl.role=roles[rand(roles.length)];}
+    for(const spec of r.bots)r.players.push({token:null,name:roleName(spec.role==='?'?roles[0]:spec.role),color:spec.color,role:spec.role==='?'?roles[rand(roles.length)]:spec.role,kind:'ai',pieces:Array(4).fill(-1),finished:false,connections:1});
+    r.players.sort((a,b)=>a.color-b.color);for(const pl of r.players)if(pl.kind==='ai')pl.name=roleName(pl.role);r.phase='playing';r.roundPhase='roll';r.turn=r.players[0].color;r.die=null;r.sixStreak=0;r.options=[];r.finishOrder=[];r.vote=null;r.voteHandled=false;r.lastRoll=null;r.lastMove=null;r.note='游戏开始';publish(r);runAI(r);return {ok:true};
   }
-  if(type==='roll'){if(p.color!==r.turn)fail('不是你的回合');roll(r,p);return {ok:true};}
-  if(type==='move'){if(p.color!==r.turn)fail('不是你的回合');performMove(r,p,Number(data.piece));return {ok:true};}
+  if(type==='roll'){if(p.auto)fail('当前座位由电脑托管，请先重新接管');if(p.color!==r.turn)fail('不是你的回合');roll(r,p);return {ok:true};}
+  if(type==='move'){if(p.auto)fail('当前座位由电脑托管，请先重新接管');if(p.color!==r.turn)fail('不是你的回合');performMove(r,p,Number(data.piece));return {ok:true};}
   fail('未知操作');
 }
 function readJSON(req){return new Promise((resolve,reject)=>{
