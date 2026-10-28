@@ -1,0 +1,37 @@
+name: Prepare selected dice clip
+on:
+  push:
+    paths:
+      - '.github/workflows/prepare-selected-dice.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and precisely trim original sound (10s to 14s)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/audio
+          curl -fLsS --retry 3 --connect-timeout 15 --max-time 90 -A 'Mozilla/5.0' 'https://sounds-mp3.com/mp3/0001188.mp3' -o /tmp/dice-source.mp3
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 /tmp/dice-source.mp3
+          python3 - <<'PY'
+          import subprocess
+          duration=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1','/tmp/dice-source.mp3']).decode().strip())
+          if duration < 14.0: raise SystemExit('Original audio too short for selected 10s-14s range: '+str(duration))
+          PY
+          ffmpeg -hide_banner -loglevel error -y -ss 10 -i /tmp/dice-source.mp3 -t 4 -vn -ac 1 -c:a libmp3lame -q:a 3 public/audio/dice-shake-roll-10-14.mp3
+          test -s public/audio/dice-shake-roll-10-14.mp3
+          ffprobe -v error -show_entries format=duration -of default=nw=1 public/audio/dice-shake-roll-10-14.mp3
+      - name: Commit cropped source audio
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/audio/dice-shake-roll-10-14.mp3
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Add selected real dice audio segment (10–14 seconds)"
+          git push
