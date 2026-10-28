@@ -197,6 +197,9 @@ function settleMatch(room,reason='本局结束'){
  const remaining=room.players.filter(p=>!room.finishOrder.includes(p.color)).sort((a,b)=>{
   const ga=a.pieces.filter(x=>x===GOAL).length,gb=b.pieces.filter(x=>x===GOAL).length;
   if(ga!==gb)return gb-ga;
+  const nearestA=Math.min(...a.pieces.filter(x=>x!==GOAL).map(distanceLeft));
+  const nearestB=Math.min(...b.pieces.filter(x=>x!==GOAL).map(distanceLeft));
+  if(nearestA!==nearestB)return nearestA-nearestB;
   const da=a.pieces.reduce((sum,x)=>sum+distanceLeft(x),0);
   const db=b.pieces.reduce((sum,x)=>sum+distanceLeft(x),0);
   if(da!==db)return da-db;
