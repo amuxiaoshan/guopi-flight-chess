@@ -349,11 +349,7 @@ function startContinueVote(room){
  room.roundPhase='vote';room.die=null;room.options=[];
  room.note='第一名已产生，等待真人玩家决定是否继续比赛';
  publish(room);
- const voteId=room.vote.id;
- setTimeout(()=>{
-  if(room.phase==='playing'&&room.roundPhase==='vote'&&room.vote?.id===voteId)
-   settleMatch(room,'投票超时，本局提前结算');
- },45000);
+ // Voting has no forced timeout. A "no" or "end early" settles immediately.
  finishVoteIfReady(room);
  return true;
 }
@@ -473,10 +469,10 @@ function handleAction(data){
   }
   if(type==='resume'){
     const r=findRoom(data.code),p=auth(r,data.token);
-    p.auto=false;
+    p.auto=false;p.autoReason=null;
     r.note=`${p.name} 已重新接管棋子`;
-    if(r.roundPhase==='vote'){publish(r);}
-    else{publish(r);}
+    publish(r);
+    if(r.roundPhase==='vote')finishVoteIfReady(r);
     return {code:r.code,token:p.token,ok:true};
   }
   const r=findRoom(data.code), p=auth(r,data.token);
@@ -523,7 +519,7 @@ function handleAction(data){
   }
   if(type==='leave'){
     if(r.phase==='playing'){
-      p.auto=true;
+      p.auto=true;p.autoReason='left';
       r.note=`${p.name} 已离开，由电脑暂时操作`;
       publish(r);
       if(r.roundPhase==='vote')finishVoteIfReady(r);
@@ -561,7 +557,7 @@ function handleAction(data){
     const humans=r.players.filter(pl=>pl.kind==='human');
     if(humans.length+r.bots.length<2)fail('至少需要两方玩家或电脑');
     r.players=humans;
-    for(const pl of humans){pl.pieces=Array(4).fill(-1);pl.finished=false;pl.auto=false;if(pl.role==='?')pl.role=roles[rand(roles.length)];}
+    for(const pl of humans){pl.pieces=Array(4).fill(-1);pl.finished=false;pl.auto=!!pl.auto||pl.connections===0;if(pl.role==='?')pl.role=roles[rand(roles.length)];}
     for(const spec of r.bots)r.players.push({token:null,name:roleName(spec.role==='?'?roles[0]:spec.role),color:spec.color,role:spec.role==='?'?roles[rand(roles.length)]:spec.role,kind:'ai',pieces:Array(4).fill(-1),finished:false,connections:1});
     r.players.sort((a,b)=>a.color-b.color);for(const pl of r.players)if(pl.kind==='ai')pl.name=roleName(pl.role);r.phase='playing';r.roundPhase='roll';r.turn=r.players[0].color;r.die=null;r.sixStreak=0;r.options=[];r.finishOrder=[];r.vote=null;r.voteHandled=false;r.lastRoll=null;r.lastMove=null;r.note='游戏开始';publish(r);runAI(r);return {ok:true};
   }
