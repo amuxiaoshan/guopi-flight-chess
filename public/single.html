@@ -309,6 +309,15 @@ function publicState(room,viewer){
 }
 function sendOne(){}
 function publish(room){room.seq++;if(rooms.get(room.code)===room){const snapshot=publicState(room,localToken);queueMicrotask(()=>{if(rooms.get(room.code)===room)listener?.(snapshot);});}}
+// Close solo or offline matches instead of allowing computers to play forever.
+function closeIfOnlyComputers(room){
+  if(room.phase!=='playing'||room.players.some(p=>p.kind==='human'&&!p.auto))return false;
+  room.phase='closed';room.roundPhase='closed';
+  room.closeReason='所有真人玩家均已离开，房间已自动关闭。';
+  room.note=room.closeReason;
+  rooms.delete(room.code);
+  return true;
+}
 function fail(message, status=400){ const e=new Error(message);e.status=status;throw e; }
 function findRoom(code){const r=rooms.get(cleanCode(code));if(!r)fail('房间不存在或已经过期',404);return r;}
 function auth(room,userToken){const p=room.players.find(x=>x.kind==='human'&&x.token===userToken);if(!p)fail('没有加入该房间，请重新通过邀请码进入',403);return p;}
@@ -336,7 +345,7 @@ function settleMatch(room,reason='本局结束'){
 function finishVoteIfReady(room){
  if(!room.vote||room.roundPhase!=='vote')return;
  const active=room.players.filter(p=>p.kind==='human'&&!p.auto);
- if(!active.length){settleMatch(room,'没有真人继续观战，本局提前结算');return;}
+ if(!active.length){closeIfOnlyComputers(room);return;}
  if(active.every(p=>room.vote.responses[p.color]===true)){
   room.vote=null;room.note='全员同意，继续比赛';
   advance(room);
@@ -520,6 +529,7 @@ function handleAction(data){
   if(type==='leave'){
     if(r.phase==='playing'){
       p.auto=true;p.autoReason='left';
+      if(closeIfOnlyComputers(r))return {ok:true,closed:true};
       r.note=`${p.name} 已离开，由电脑暂时操作`;
       publish(r);
       if(r.roundPhase==='vote')finishVoteIfReady(r);
@@ -1018,7 +1028,7 @@ async function leaveRoom(){
 }
 function isSoloMode(){return state?.mode==='solo'||myRoomMode==='solo';}
 function exitSetup(){
- if(state?.phase==='playing')dialog('交给电脑暂时操作？','电脑会接管原来的棋子，再从首页返回原座位即可恢复。',leaveRoom);
+ if(state?.phase==='playing')dialog('退出游戏？','离开单人游戏后，房间将关闭；不会留下电脑继续对局。',leaveRoom);
  else if(isSoloMode())leaveRoom();
  else dialog('退出房间？','确定退出准备房间？',leaveRoom);
 }
