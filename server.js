@@ -266,7 +266,7 @@ function performMove(room,p,id){
   const plan=projection(p.pieces[id],room.die);if(!plan)fail('无效移动');
   const start=p.pieces[id];p.pieces[id]=plan.to;
   const hit=captureAlong(room,p,plan,id);
-  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die,dialogue:hit?collisionLine(p.role):''};
+  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die,goalOrdinal:plan.to===GOAL?p.pieces.filter(v=>v===GOAL).length:null,dialogue:hit?collisionLine(p.role):''};
   room.roundPhase='moving';room.options=[];
   room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
   if(p.pieces.every(v=>v===GOAL)&&!p.finished){p.finished=true;room.finishOrder.push(p.color);}
