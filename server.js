@@ -193,8 +193,10 @@ function cancelHostTransfer(room){
  room.hostTransferTimer=null;room.hostAwaySince=null;room.hostAwayToken=null;
 }
 function eligibleHostSuccessor(room){
+ const currentOrder=room.players.find(p=>p.token===room.host)?.joinOrder??-1;
+ const nextDistance=p=>p.joinOrder>currentOrder?p.joinOrder-currentOrder:room.nextJoinOrder+p.joinOrder-currentOrder;
  return room.players.filter(p=>p.kind==='human'&&p.token!==room.host&&!p.auto&&p.connections>0)
-   .sort((a,b)=>(a.joinOrder??Number.MAX_SAFE_INTEGER)-(b.joinOrder??Number.MAX_SAFE_INTEGER))[0];
+   .sort((a,b)=>nextDistance(a)-nextDistance(b))[0];
 }
 function attemptHostTransfer(room){
  if(rooms.get(room.code)!==room||room.phase==='closed'||!room.hostAwaySince||room.hostAwayToken!==room.host)return;
