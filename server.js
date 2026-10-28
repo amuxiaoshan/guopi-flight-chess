@@ -225,11 +225,7 @@ function startContinueVote(room){
  room.roundPhase='vote';room.die=null;room.options=[];
  room.note='第一名已产生，等待真人玩家决定是否继续比赛';
  publish(room);
- const voteId=room.vote.id;
- setTimeout(()=>{
-  if(room.phase==='playing'&&room.roundPhase==='vote'&&room.vote?.id===voteId)
-   settleMatch(room,'投票超时，本局提前结算');
- },45000);
+ // No forced 45-second timeout: participants decide, or anyone can end early.
  finishVoteIfReady(room);
  return true;
 }
@@ -243,6 +239,18 @@ function autoChoose(room,p){
    performMove(room,p,best.id);
   }
  },550);
+}
+
+// A temporary network loss cannot leave a human turn stalled forever.
+const DISCONNECT_TAKEOVER_MS=6500;
+function takeOverDisconnectedSeat(room,p){
+ if(rooms.get(room.code)!==room||room.phase!=='playing'||p.kind!=='human'||p.connections!==0||p.auto)return;
+ p.auto=true;p.autoReason='offline';
+ room.note=`${p.name} 暂时离线，电脑接管`;
+ publish(room);
+ if(room.roundPhase==='vote')finishVoteIfReady(room);
+ else if(room.turn===p.color&&room.roundPhase==='roll')runAI(room);
+ else if(room.turn===p.color&&room.roundPhase==='choose')autoChoose(room,p);
 }
 
 function advance(room){
@@ -349,10 +357,10 @@ function handleAction(data){
   }
   if(type==='resume'){
     const r=findRoom(data.code),p=auth(r,data.token);
-    p.auto=false;
+    p.auto=false;p.autoReason=null;
     r.note=`${p.name} 已重新接管棋子`;
-    if(r.roundPhase==='vote'){publish(r);}
-    else{publish(r);}
+    publish(r);
+    if(r.roundPhase==='vote')finishVoteIfReady(r);
     return {code:r.code,token:p.token,ok:true};
   }
   const r=findRoom(data.code), p=auth(r,data.token);
@@ -411,7 +419,7 @@ function handleAction(data){
   }
   if(type==='leave'){
     if(r.phase==='playing'){
-      p.auto=true;
+      p.auto=true;p.autoReason='left';
       for(const conn of [...r.clients].filter(c=>c.token===p.token)){
         r.clients.delete(conn);try{conn.res.end();}catch{}
       }
@@ -467,7 +475,7 @@ function handleAction(data){
     const humans=r.players.filter(pl=>pl.kind==='human');
     if(humans.length+r.bots.length<2)fail('至少需要两方玩家或电脑');
     r.players=humans;
-    for(const pl of humans){pl.pieces=Array(4).fill(-1);pl.finished=false;pl.auto=false;if(pl.role==='?')pl.role=roles[rand(roles.length)];}
+    for(const pl of humans){pl.pieces=Array(4).fill(-1);pl.finished=false;pl.auto=!!pl.auto||pl.connections===0;if(pl.role==='?')pl.role=roles[rand(roles.length)];}
     for(const spec of r.bots)r.players.push({token:null,name:roleName(spec.role==='?'?roles[0]:spec.role),color:spec.color,role:spec.role==='?'?roles[rand(roles.length)]:spec.role,kind:'ai',pieces:Array(4).fill(-1),finished:false,connections:1});
     r.players.sort((a,b)=>a.color-b.color);for(const pl of r.players)if(pl.kind==='ai')pl.name=roleName(pl.role);r.phase='playing';r.roundPhase='roll';r.turn=r.players[0].color;r.die=null;r.sixStreak=0;r.options=[];r.finishOrder=[];r.vote=null;r.voteHandled=false;r.lastRoll=null;r.lastMove=null;r.note='游戏开始';publish(r);runAI(r);return {ok:true};
   }
@@ -506,9 +514,25 @@ const server=http.createServer(async(req,res)=>{
   if(req.method==='GET'&&url.pathname==='/api/events'){
     const r=findRoom(url.searchParams.get('code')),token=url.searchParams.get('token'),player=auth(r,token);
     res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache,no-transform','Connection':'keep-alive','X-Accel-Buffering':'no'});
-    const c={res,token};r.clients.add(c);player.connections++;sendOne(r,c);publish(r);
+    const c={res,token};r.clients.add(c);player.connections++;
+    // Reconnect after network loss automatically reclaims the seat;
+    // an explicit "leave" still needs the Resume button.
+    if(player.auto&&player.autoReason==='offline'){
+      player.auto=false;player.autoReason=null;
+      r.note=`${player.name} 已重新连接并接管棋子`;
+    }
+    sendOne(r,c);publish(r);
+    if(r.roundPhase==='vote')finishVoteIfReady(r);
     const heartbeat=setInterval(()=>{try{res.write(': ping\n\n');}catch{}},20000);
-    res.on('close',()=>{clearInterval(heartbeat);r.clients.delete(c);player.connections=Math.max(0,player.connections-1);if(rooms.get(r.code)===r&&r.phase!=='closed')publish(r);});
+    res.on('close',()=>{
+      clearInterval(heartbeat);r.clients.delete(c);
+      player.connections=Math.max(0,player.connections-1);
+      if(rooms.get(r.code)===r&&r.phase!=='closed'){
+        publish(r);
+        if(r.phase==='playing'&&player.connections===0&&!player.auto)
+          setTimeout(()=>takeOverDisconnectedSeat(r,player),DISCONNECT_TAKEOVER_MS);
+      }
+    });
     return;
   }
   if(req.method==='GET'){
