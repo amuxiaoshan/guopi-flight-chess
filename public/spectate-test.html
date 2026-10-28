@@ -29,6 +29,7 @@
 <button type="button" id="demoNext" disabled>观看下一回合</button>
 <button type="button" id="demoSecond" disabled>模拟第二名冲线</button>
 <button type="button" id="demoReset">重置整个演示</button>
+<button type="button" id="demoRejoin" disabled>模拟退出后返回接管</button>
 </div>
 <div id="demoInfo" role="status" aria-live="polite">点击「模拟第一名冲线」，看第四枚棋子到终点和续赛投票弹窗。</div>
 </aside>
@@ -80,9 +81,9 @@
 <div id="continuePrompt" class="continue-prompt" role="dialog" aria-modal="true" aria-labelledby="continueTitle" aria-hidden="true">
  <div class="continue-card">
   <h3 id="continueTitle">第一名已产生！</h3>
-  <p id="continueText">是否继续观看剩余比赛？只有全体真人玩家都同意，比赛才会继续。</p>
+  <p id="continueText">是否继续观看剩余比赛？留下的真人都同意即可续赛，不想继续可以退出并交给电脑。</p>
   <p id="continueProgress" class="sub"></p>
-  <div class="continue-actions"><button type="button" class="primary" id="continueYes">同意继续</button><button type="button" class="secondary" id="continueNo">结束并结算</button></div>
+  <div class="continue-actions"><button type="button" class="primary" id="continueYes">同意继续</button><button type="button" class="secondary" id="continueNo">退出房间（电脑接管）</button></div>
  </div>
 </div>
 <div class="shade" id="dialog"><div class="dialog"><h3 id="dlgTitle">提示</h3><div id="dlgText"></div><div class="dialogActions"><button id="dlgClose" class="secondary">取消</button><button id="dlgConfirm" class="primary">确定</button></div></div></div>
@@ -98,7 +99,7 @@
   {color:2,role:'H',name:'亚洛',kind:'ai',pieces:[-1,14,23,45],finished:false,auto:false,connected:true}
  ];
  let players,phase='ready',viewer=3,turn=3,notes='',finished=[],responses={},sequence=0,moveSequence=0,rollSequence=0;
- let rollEvent=null,moveEvent=null,busy=false,epoch=0,cycle=0;
+ let rollEvent=null,moveEvent=null,busy=false,epoch=0,cycle=0,departedColor=null;
  let timers=[];
  const realColors=[3,0,1],turnOrder=[0,1,2];
  const names={3:'青栖禾',0:'澄',1:'塔努利安',2:'亚洛'};
@@ -108,6 +109,7 @@
   el('demoFinish').disabled=phase!=='ready'||busy;
   el('demoNext').disabled=phase!=='continued'||busy;
   el('demoSecond').disabled=phase!=='continued'||busy||finished.includes(0);
+  el('demoRejoin').disabled=departedColor===null||phase==='over'||phase==='ready';
  }
  function nextTurn(){
   cycle++;
@@ -123,7 +125,8 @@
    turn,die:null,options:[],note:notes,voteHandled:phase!=='ready'&&phase!=='first-rolling',
    finishOrder:[...finished],bots:[],lastRoll:rollEvent,lastMove:moveEvent,
    vote:phase==='vote'?{
-    id:1,required:3,agreed:Object.values(responses).filter(Boolean).length,
+    id:1,required:players.filter(p=>p.kind==='human'&&!p.auto).length,
+    agreed:players.filter(p=>p.kind==='human'&&!p.auto&&responses[p.color]===true).length,
     myVote:Object.hasOwn(responses,viewer)?responses[viewer]:null
    }:null,seq:++sequence
   };
@@ -133,7 +136,7 @@
   epoch++;for(const id of timers)clearTimeout(id);timers=[];
   resetConnection();cancelDiceSpin();stopDiceShake();
   players=initial();phase='ready';viewer=3;turn=3;notes='演示起点：青栖禾只差最后一枚棋子就完成了';
-  finished=[];responses={};rollEvent=null;moveEvent=null;sequence=0;moveSequence=0;rollSequence=0;busy=false;cycle=0;
+  finished=[];responses={};rollEvent=null;moveEvent=null;sequence=0;moveSequence=0;rollSequence=0;busy=false;cycle=0;departedColor=null;
   el('demoViewer').value='3';
   el('demoInfo').textContent='点击「模拟第一名冲线」，看第四枚棋子到终点和续赛投票弹窗。';
   emit();placeCube(1);
@@ -148,7 +151,7 @@
    const p=players.find(p=>p.color===3);p.pieces[3]=55;p.finished=true;
    finished=[3];phase='vote';notes='第一名已产生，等待真人玩家决定是否继续比赛';
    moveEvent={seq:++moveSequence,color:3,piece:3,start:52,path:[{pos:53,kind:'骰点'},{pos:54,kind:'骰点'},{pos:55,kind:'骰点'}],flags:['到达终点'],die:3,goalOrdinal:4,hit:0,dialogue:''};
-   busy=false;emit();say('青栖禾已获得第一名。请在淡入弹窗中选择同意继续或结束结算；电脑不参与投票。');
+   busy=false;emit();say('青栖禾已获得第一名。请在淡入弹窗中选择同意继续或退出并托管；电脑不参与投票。');
   },2900);
  }
  function endGame(reason){
@@ -163,26 +166,56 @@
   phase='over';busy=false;notes=reason;emit();
   say('模拟比赛已结算。可切换观看视角检查不同玩家的排名，或重置再测。');
  }
+ function finishSimulatedVote(){
+  if(phase!=='vote')return;
+  const active=players.filter(p=>p.kind==='human'&&!p.auto);
+  if(!active.length){
+   phase='over';busy=false;notes='所有真人都已退出，房间自动关闭';emit();
+   say('所有真人退出，模拟房间已关闭。');
+   return;
+  }
+  if(active.every(p=>responses[p.color]===true)){
+   phase='continued';turn=0;cycle=0;busy=false;
+   notes='留下的真人同意续赛 · 其余座位由电脑接管';
+   emit();
+   say('留下的真人已同意继续！退出者由电脑托管；点「模拟退出后返回接管」，可恢复原座位。');
+  }
+ }
  function castVote(agree){
-  if(phase!=='vote'||Object.hasOwn(responses,viewer))return;
+  if(phase!=='vote'||players.find(p=>p.color===viewer)?.auto)return;
+  if(agree&&Object.hasOwn(responses,viewer))return;
   const own=epoch;
-  responses[viewer]=agree;
-  if(!agree){endGame('有人选择结束比赛，按当前棋子进度结算');return;}
-  emit();say('你已同意。正在模拟其余两位真人玩家陆续投同意票……');
-  const remaining=realColors.filter(c=>c!==viewer&&!Object.hasOwn(responses,c));
+  if(agree){responses[viewer]=true;}
+  else{
+   const leaving=players.find(p=>p.color===viewer);
+   if(!leaving||leaving.kind!=='human')return;
+   leaving.auto=true;leaving.autoReason='left';leaving.connected=false;
+   departedColor=viewer;delete responses[viewer];
+   const next=realColors.find(c=>players.some(p=>p.color===c&&!p.auto));
+   if(next!==undefined){viewer=next;el('demoViewer').value=String(viewer);}
+  }
+  emit();
+  say(agree?'你已同意。模拟其他留下的真人依次投同意票……':names[departedColor]+' 已退出，电脑接管原座位。其他真人继续投票，不会直接结束比赛。');
+  const remaining=realColors.filter(c=>players.some(p=>p.color===c&&!p.auto)&&responses[c]!==true);
+  if(!remaining.length){later(()=>{if(epoch===own)finishSimulatedVote();},650);return;}
   remaining.forEach((color,index)=>later(()=>{
    if(epoch!==own||phase!=='vote')return;
+   const p=players.find(p=>p.color===color);
+   if(p?.auto)return;
    responses[color]=true;emit();
-   if(remaining.every(c=>responses[c]===true)){
-    later(()=>{
-     if(epoch!==own||phase!=='vote')return;
-     phase='continued';turn=0;cycle=0;busy=false;
-     notes='全员同意，继续比赛 · 轮到澄掷骰';
-     emit();
-     say('三位真人全部同意！第一名现在是观战者，骰子不能操作；可以按「观看下一回合」看别人继续走棋。');
-    },650);
-   }
-  },700+(index*800)));
+   if(players.filter(p=>p.kind==='human'&&!p.auto).every(p=>responses[p.color]===true))
+    later(()=>{if(epoch===own)finishSimulatedVote();},650);
+  },700+index*800));
+ }
+ function rejoin(){
+  if(departedColor===null)return;
+  const p=players.find(p=>p.color===departedColor);
+  if(!p||phase==='over'||phase==='ready')return;
+  p.auto=false;p.autoReason=null;p.connected=true;
+  viewer=departedColor;el('demoViewer').value=String(viewer);
+  departedColor=null;notes=names[viewer]+' 已重新进入房间并接管座位';
+  emit();
+  say(names[viewer]+' 已重新接管！棋子位置和已有成绩保持不变。');
  }
  function watchNext(){
   if(phase!=='continued'||busy)return;
@@ -241,6 +274,7 @@
  el('demoNext').onclick=watchNext;
  el('demoSecond').onclick=secondGoal;
  el('demoReset').onclick=reset;
+ el('demoRejoin').onclick=rejoin;
  el('demoViewer').onchange=e=>{
   viewer=Number(e.target.value);
   emit();
