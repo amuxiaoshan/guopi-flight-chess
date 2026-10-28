@@ -350,10 +350,10 @@ function syncVotePrompt(){
  }
  const winner=state.players.find(p=>p.color===state.finishOrder[0]);
  $('continueTitle').textContent=`第一名：${winner?winner.role==='?'?winner.name:roleName(winner.role):'已产生'}`;
- $('continueText').textContent='是否继续观看剩余比赛？只有所有在场的真人玩家都同意才会继续。已完成的玩家转为观战，电脑不需要投票。';
+ $('continueText').textContent='是否继续观看剩余比赛？愿意留下的真人全部同意即可继续；不愿继续可以退出，电脑会接管棋子，之后仍可返回。电脑不投票。';
  $('continueProgress').textContent=`已同意 ${v.agreed}/${v.required} 人 · 等待其余真人玩家选择`;
  $('continueYes').disabled=v.myVote===true;
- $('continueNo').disabled=v.myVote===false;
+ $('continueNo').disabled=false; // Even after voting yes, a participant may choose to leave.
  if(!el.classList.contains('open')&&!voteFadeTimer){
   voteFadeTimer=setTimeout(()=>{
    voteFadeTimer=null;
@@ -364,7 +364,7 @@ function syncVotePrompt(){
  }
 }
 $('continueYes').onclick=()=>action({type:'vote',agree:true});
-$('continueNo').onclick=()=>action({type:'vote',agree:false});
+$('continueNo').onclick=()=>leaveRoom(); // Disagreeing exits only this seat; the others keep playing.
 $('settleNow').onclick=()=>dialog('提前结算比赛？','将按已到终点的棋子数量、再按最近的棋子距终点的格数排列名次。这个操作会结束所有人的当前比赛。',()=>action({type:'end-early'}));
 function showRankDetails(){
  const order=state?.finishOrder||[];
@@ -558,7 +558,7 @@ function renderGame(){
  $('status').textContent=turnPlayer&&(turnPlayer.kind==='ai'||turnPlayer.auto)?roleName(turnPlayer.role):(state.note||`${turnPlayer?.name||'玩家'} 的回合`);
  $('detail').textContent=state.roundPhase==='choose'&&state.die?`骰子 ${state.die} 点 · ${phases.choose}`:(phases[state.roundPhase]||'');
  $('roll').disabled=!(mine&&!self?.auto&&state.roundPhase==='roll');
- $('settleNow').hidden=state.phase!=='playing';
+ $('settleNow').hidden=state.phase!=='playing'||state.roundPhase==='vote';
 
  $('diceStatus').textContent=mine&&state.roundPhase==='roll'?'点击投掷骰子':turnPlayer&&(turnPlayer.kind==='ai'||turnPlayer.auto)?roleName(turnPlayer.role):`${turnPlayer?.name||'对方'} 的回合`;
  drawPieces();
@@ -640,7 +640,7 @@ async function animateMove(move){$('bubble').style.display='none';const mine=++a
  await sleep(100);if(mine!==animationSerial)return;animPiece=null;drawPieces();
  if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
-function rules(){dialog('游戏说明','每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；全员同意才会继续，已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。');}
+function rules(){dialog('游戏说明','每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。');}
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
 initDice();placeCube(1);
 refreshReturnSeat();
