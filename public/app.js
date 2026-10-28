@@ -210,7 +210,7 @@ async function action(payload){
   return result;
  }catch(e){toast(e.message);return null;}
 }
-function resetConnection(){stopDiceShake();if(events){events.close();events=null;}animationSerial++;rollSerial++;state=null;lastSequence=-1;lastMoveSeq=-1;lastRollSeq=-1;animPiece=null;}
+function resetConnection(){cancelDiceSpin();stopDiceShake();if(events){events.close();events=null;}animationSerial++;rollSerial++;state=null;lastSequence=-1;lastMoveSeq=-1;lastRollSeq=-1;animPiece=null;}
 function home(){resetConnection();code='';authToken='';myRoomMode='';pendingExit=false;screen('welcome');history.replaceState(null,'',location.pathname);}
 function connect(){
  resetConnection();
@@ -451,28 +451,78 @@ function initDice(){document.querySelectorAll('.face').forEach(face=>{
  const n=Number(face.dataset.face);
  for(const idx of PIPS[n]){const pip=document.createElement('i');pip.className='pip';pip.style.left=`${[23,50,77][idx%3]}%`;pip.style.top=`${[23,50,77][Math.floor(idx/3)]}%`;face.appendChild(pip);}
 });}
-function placeCube(n){const [x,y]=ORIENT[n]||ORIENT[1];$('cube').style.transition='none';$('cube').style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;$('roll').setAttribute('aria-label',`骰子：${n} 点`);}
-async function animateRoll(n){const own=++rollSerial;const cube=$('cube');const [x,y]=ORIENT[n];const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- const recorded=playRecordedDiceShake();
+// The front-right-bottom vertex is the spinning top's contact point.
+// A 54.7356° tilt around (-1, 0, 1) puts the cube's body diagonal upright;
+// rotating around the screen's Y axis then leaves that corner stationary.
+let diceSpinAnimation=null;
+function cancelDiceSpin(){
+ if(diceSpinAnimation){try{diceSpinAnimation.cancel();}catch{}diceSpinAnimation=null;}
+ $('roll').classList.remove('pivoting');
+}
+function placeCube(n){
+ cancelDiceSpin();
+ const [x,y]=ORIENT[n]||ORIENT[1],cube=$('cube');
+ cube.style.transition='none';
+ cube.style.transformOrigin='50% 50% 0px';
+ cube.style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;
+ $('roll').setAttribute('aria-label',`骰子：${n} 点`);
+}
+async function animateRoll(n){
+ const own=++rollSerial, cube=$('cube'), [x,y]=ORIENT[n];
+ const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ cancelDiceSpin();
+ const recorded=playRecordedDiceShake(); // Sound and movement start on the same game event.
+ $('diceStatus').textContent='骰子旋转中';
  if(reduced){
   if(!recorded)playDiceTap(true);
   placeCube(n);
-  // Reduced-motion users hear the full recording with no visual animation.
+  $('diceStatus').textContent=`${n} 点`;
   return;
  }
- if(recorded){
-  // Original shake, throw and roll already includes landing sounds.
- }else{
-  playDiceTap();
-  for(const ms of [90,190,310,440,570]){
-   setTimeout(()=>{if(own===rollSerial)playDiceTap(ms===570);},ms);
-  }
+ if(!recorded){
+  // Browser audio fallback only; do not overlay synthetic taps on the recording.
+  for(const ms of [0,170,350,570,850,1180,1530,1900,2350])
+   setTimeout(()=>{if(own===rollSerial)playDiceTap(ms===2350);},ms);
  }
- // The dice move for the 2.5-second sound, then hold the resulting face for about 0.9 s.
- cube.style.transition='transform 2.45s cubic-bezier(.18,.65,.2,1)';cube.style.transform=`rotateX(${1440+x}deg) rotateY(${2160+y}deg)`;
- await sleep(2470);if(own!==rollSerial)return;
- // The server waits until 3.35 s before allowing progression, keeping the result readable.
- cube.style.transition='none';cube.style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;$('roll').setAttribute('aria-label',`骰子：${n} 点`);
+ $('roll').classList.add('pivoting');
+ const tip='100% 100% 31px';
+ // Translation centers the contacting corner in the button and 6px above its foot.
+ const spin=deg=>`translate3d(-31px,-6px,0px) rotateY(${deg}deg) rotate3d(-1,0,1,54.7356deg)`;
+ const last=`rotateX(${x}deg) rotateY(${y}deg)`;
+ const first=cube.style.transform||'rotateX(0deg) rotateY(0deg)';
+ const frames=[
+  {offset:0,transform:first,transformOrigin:'50% 50% 0px',easing:'ease-out'},
+  {offset:0.11,transform:spin(0),transformOrigin:tip,easing:'ease-in'},
+  {offset:0.29,transform:spin(360),transformOrigin:tip,easing:'linear'},
+  {offset:0.52,transform:spin(900),transformOrigin:tip,easing:'linear'},
+  {offset:0.77,transform:spin(1350),transformOrigin:tip,easing:'ease-out'},
+  {offset:0.88,transform:spin(1500),transformOrigin:tip,easing:'ease-out'},
+  {offset:0.94,transform:`translate3d(-27px,-6px,0px) rotateY(1530deg) rotate3d(-1,0,1,35deg)`,transformOrigin:tip,easing:'ease-out'},
+  {offset:1,transform:last,transformOrigin:'50% 50% 0px'}
+ ];
+ const duration=2560; // The trimmed shake/roll audio is approximately 2.5s.
+ if(typeof cube.animate==='function'){
+  try{
+   const anim=cube.animate(frames,{duration,easing:'linear',fill:'forwards'});
+   diceSpinAnimation=anim;
+   await anim.finished;
+  }catch{if(own!==rollSerial)return;}
+ }else{
+  // Simple accessible fallback for older browsers lacking Web Animations.
+  cube.style.transition='transform 2.35s ease-out';
+  cube.style.transformOrigin=tip;
+  cube.style.transform=spin(1260);
+  await sleep(2350);
+  if(own!==rollSerial)return;
+  cube.style.transition='transform .21s ease-out';
+  cube.style.transformOrigin='50% 50% 0px';
+  cube.style.transform=last;
+  await sleep(210);
+ }
+ if(own!==rollSerial)return;
+ placeCube(n);
+ // The server keeps the result visible for another ~0.8s before progressing.
+ $('diceStatus').textContent=`${n} 点`;
 }
 async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start};drawPieces();
  for(let k=0;k<move.path.length;k++){
