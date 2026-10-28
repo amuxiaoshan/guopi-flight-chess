@@ -478,7 +478,7 @@ async function leaveRoom(){
 function isSoloMode(){return state?.mode==='solo'||myRoomMode==='solo';}
 function exitSetup(){
  if(state?.phase==='playing'){
-  dialog('交给电脑暂时操作？','退出后电脑会接管你的棋子。之后从首页点击「返回上次的房间」即可恢复原座位，不会丢失进度。',leaveRoom);
+  dialog('退出当前比赛？','如果还有真人留在房间，电脑会接管你的棋子，你之后可以重新进入；如果你是最后一位真人，房间会立即关闭。',leaveRoom);
   return;
  }
  if(isSoloMode()){leaveRoom();return;}
