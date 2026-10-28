@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f9f8f5"><title>适得棋所 · 多人观战模拟</title><link rel="stylesheet" href="/style.css">
+<style>
+.watch-demo{position:relative;z-index:1;width:min(100%,570px);margin:15px auto 12px;padding:14px 15px;background:#fff;border:1px solid #dce4ec;border-radius:16px;box-shadow:0 5px 24px #162b4210;color:#313941;font-size:13px;line-height:1.7}
+.watch-demo h2{font-size:16px;font-weight:650;letter-spacing:.025em;margin:0 0 6px}
+.watch-demo p{font-size:12px;margin:0 0 10px;color:#78808b;line-height:1.65}
+.watch-demo .watch-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.watch-demo select{font:inherit;min-height:34px;border-radius:9px;border:1px solid #cbd3dd;padding:5px 8px;background:#fff;color:#333}
+.watch-demo .watch-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:11px}
+.watch-demo button{font:inherit;border:1px solid #d1d8df;background:#f7f8fa;border-radius:9px;padding:9px 8px;min-height:37px;color:#43505f}
+.watch-demo button#demoFinish{background:#f3dfc2;border-color:#ecd1a9;color:#483b2f}
+.watch-demo button:disabled{opacity:.48;cursor:default}
+.watch-demo #demoInfo{font-size:12px;color:#506477;line-height:1.65;margin-top:10px;min-height:20px}
+@media (max-width:380px){.watch-demo{padding:12px}.watch-demo .watch-actions{grid-template-columns:1fr 1fr}.watch-demo button{font-size:12px}}
+</style></head>
+<body><div id="localFileWarning" style="display:none;position:fixed;inset:0;z-index:999;background:#f8f8f7;padding:32px 22px;color:#27292e;font:16px/1.8 system-ui,-apple-system,'Microsoft YaHei',sans-serif;text-align:center;overflow:auto"><div style="max-width:450px;margin:60px auto"><h2>这个入口需要先启动房间服务器</h2><p>请先解压 ZIP，返回游戏文件夹，双击「多人房间_双击启动.bat」，然后访问 http://127.0.0.1:3000/</p><p>只想马上单人玩的话，直接双击文件夹最外层的「单人离线版_双击直接玩.html」就可以。</p></div></div><script>if(location.protocol==='file:')document.addEventListener('DOMContentLoaded',()=>{document.getElementById('localFileWarning').style.display='block'});</script><main>
+<aside class="watch-demo" aria-label="观战功能测试控制台">
+<h2>多人观战模拟局</h2>
+<p>3 位真人 + 1 位电脑。使用正式版界面模拟第一名诞生、续赛投票和观战；不连接真实房间。</p>
+<div class="watch-controls"><label for="demoViewer">当前观看视角：</label>
+<select id="demoViewer">
+<option value="3">青栖禾（即将第一名）</option>
+<option value="0">澄（其他真人）</option>
+<option value="1">塔努利安（其他真人）</option>
+</select></div>
+<div class="watch-actions">
+<button type="button" id="demoFinish">模拟第一名冲线</button>
+<button type="button" id="demoNext" disabled>观看下一回合</button>
+<button type="button" id="demoSecond" disabled>模拟第二名冲线</button>
+<button type="button" id="demoReset">重置整个演示</button>
+</div>
+<div id="demoInfo" role="status" aria-live="polite">点击「模拟第一名冲线」，看第四枚棋子到终点和续赛投票弹窗。</div>
+</aside>
+<section id="welcome" class="screen active">
+ <div class="titleblock"><h1>适得棋所</h1><p>——是飞行棋！</p></div>
+ <div class="intro">
+  <label for="nickname">你的名字</label><input id="nickname" maxlength="16" value="玩家" autocomplete="nickname" placeholder="输入昵称">
+  <button id="solo" class="primary">单人游戏</button>
+  <button id="create" class="secondary">创建多人房间</button>
+  <div class="joinrow"><input id="joinCode" placeholder="输入六位房间码" maxlength="6" aria-label="房间码"><button id="join" class="secondary">加入房间</button></div>
+  <button id="resumeLast" type="button" class="textbutton resume-seat" hidden>返回上次的房间（接管原来的棋子）</button>
+  <p id="inviteNotice" class="inviteNotice" hidden>收到房间邀请啦。填写昵称，再点击「加入房间」即可。</p>
+  <p class="sub">单人可选 1～3 个电脑。多人支持 2～4 个真人，并可由房主补电脑。</p>
+ </div>
+ <div class="footerlinks"><button id="rulesHome" class="textbutton">游戏规则</button><button id="soundRepairHome" class="textbutton sound-repair" type="button" title="只修复声音播放，不刷新页面">没有音效？点此刷新</button><a href="/single.html" download="适得棋所_离线单人版.html" title="下载后可断网打开游玩">下载离线版（断网可玩）</a></div>
+</section>
+<section id="lobby" class="screen">
+ <header class="nav"><button id="exitLobby" class="back" aria-label="返回">‹</button><strong>房间准备</strong><span class="navfiller"></span></header>
+ <div class="roommeta"><div><small>房间号码</small><strong id="codeText">------</strong></div><button id="copyInvite" class="secondary small">复制邀请链接</button></div>
+ <div class="shareSettings" id="shareSettings" hidden><label for="lanAddress">手机同 Wi-Fi 邀请地址</label><select id="lanAddress" aria-label="选择电脑的局域网地址"></select><p id="networkHint" class="sub"></p></div>
+ <div class="caption">我的角色</div><div class="rolechooser"><button id="prevRole" class="arrow">‹</button><div class="largeToken" id="myToken">?</div><button id="nextRole" class="arrow">›</button></div><p id="myRole" class="center hint">随机角色</p>
+ <div class="caption">我的棋子外框颜色</div><div id="myColors" class="colors"></div>
+ <div class="caption spaced">本局座位</div><div id="seats" class="seats"></div>
+ <div id="botControl" class="botcontrols"><div class="botheader"><strong>电脑设置</strong><label>数量 <select id="botCount"></select></label></div><div id="botEditors"></div></div>
+ <p id="lobbyHint" class="sub"></p>
+ <div class="bottom"><button id="startGame" class="primary">开始游戏</button><button id="leave" class="textbutton">返回主页</button></div>
+</section>
+<section id="game" class="screen">
+ <header class="nav"><button id="gameBack" class="back" aria-label="退出">‹</button><strong>适得棋所</strong><div class="navtools"><button id="soundToggle" class="textbutton sound-toggle" type="button" aria-pressed="true" title="关闭终点音效">音效：开</button><button id="gameRules" class="textbutton">规则</button></div></header>
+ <div id="playerStrip" class="playerstrip"></div>
+ <div class="boardwrap"><img src="/board.svg" alt="飞行棋棋盘" class="boardart"><svg id="pieces" viewBox="0 0 900 900" aria-label="游戏棋子"></svg><div id="bubble" class="bubble"></div></div>
+
+ <div class="boardselection" id="boardSelection">本次选择<strong id="boardSelectedRole">【角色】</strong></div>
+  <div class="gametext"><strong id="status">等待行动</strong><small id="detail"></small></div>
+ <div class="dicearea"><button id="roll" class="dice" aria-label="点击投掷骰子"><span class="cube" id="cube"><span class="face front" data-face="1"></span><span class="face back" data-face="6"></span><span class="face right" data-face="3"></span><span class="face left" data-face="4"></span><span class="face top" data-face="5"></span><span class="face bottom" data-face="2"></span></span></button><span id="diceStatus" class="hint">等待掷骰</span></div>
+ <div class="sound-test-row"><button id="settleNow" type="button" class="textbutton settle-now" hidden>提前结束并结算</button><button id="soundRepairGame" class="textbutton sound-repair" type="button" title="只修复声音播放，不刷新页面">没有音效？点此刷新</button></div>
+ <div id="gameHint" class="bottomgame sub">轮到自己时掷骰 · 可选的棋子会显示光圈和小三角</div>
+</section>
+<section id="result" class="screen result">
+ <h2>游戏结束</h2>
+ <div class="art-placeholder" aria-label="结算插图预留位置"><span>插图预留区</span></div>
+ <div class="rank">本次排名：<strong id="rank">第 1 名</strong></div>
+ <div id="rankDetail" class="rank-detail" aria-live="polite"></div>
+ <p id="resultNote" class="result-note" hidden>等待房主再次开始游戏</p>
+ <div class="bottom"><button id="restart" class="primary">再次游戏</button><button id="resultHome" class="secondary">返回主页</button></div>
+</section>
+<div class="toast" id="toast" role="status"></div>
+</main>
+<div id="continuePrompt" class="continue-prompt" role="dialog" aria-modal="true" aria-labelledby="continueTitle" aria-hidden="true">
+ <div class="continue-card">
+  <h3 id="continueTitle">第一名已产生！</h3>
+  <p id="continueText">是否继续观看剩余比赛？只有全体真人玩家都同意，比赛才会继续。</p>
+  <p id="continueProgress" class="sub"></p>
+  <div class="continue-actions"><button type="button" class="primary" id="continueYes">同意继续</button><button type="button" class="secondary" id="continueNo">结束并结算</button></div>
+ </div>
+</div>
+<div class="shade" id="dialog"><div class="dialog"><h3 id="dlgTitle">提示</h3><div id="dlgText"></div><div class="dialogActions"><button id="dlgClose" class="secondary">取消</button><button id="dlgConfirm" class="primary">确定</button></div></div></div>
+<script src="/app.js"></script>
+<script>
+"use strict";
+(function(){
+ const el=id=>document.getElementById(id);
+ const initial=()=>[
+  {color:3,role:'A',name:'玩家甲',kind:'human',pieces:[55,55,55,52],finished:false,auto:false,connected:true},
+  {color:0,role:'B',name:'玩家乙',kind:'human',pieces:[55,20,39,48],finished:false,auto:false,connected:true},
+  {color:1,role:'G',name:'玩家丙',kind:'human',pieces:[55,55,29,48],finished:false,auto:false,connected:true},
+  {color:2,role:'H',name:'亚洛',kind:'ai',pieces:[-1,14,23,45],finished:false,auto:false,connected:true}
+ ];
+ let players,phase='ready',viewer=3,turn=3,notes='',finished=[],responses={},sequence=0,moveSequence=0,rollSequence=0;
+ let rollEvent=null,moveEvent=null,busy=false,epoch=0,cycle=0;
+ let timers=[];
+ const realColors=[3,0,1],turnOrder=[0,1,2];
+ const names={3:'青栖禾',0:'澄',1:'塔努利安',2:'亚洛'};
+ const later=(fn,delay)=>{const id=setTimeout(()=>{timers=timers.filter(x=>x!==id);fn();},delay);timers.push(id);};
+ const say=message=>{el('demoInfo').textContent=message;};
+ function updateControls(){
+  el('demoFinish').disabled=phase!=='ready'||busy;
+  el('demoNext').disabled=phase!=='continued'||busy;
+  el('demoSecond').disabled=phase!=='continued'||busy||finished.includes(0);
+ }
+ function nextTurn(){
+  cycle++;
+  turn=turnOrder[cycle%turnOrder.length];
+  while(finished.includes(turn)){cycle++;turn=turnOrder[cycle%turnOrder.length];}
+ }
+ function snapshot(){
+  return {
+   code:'TEST88',host:false,hostColor:3,viewerColor:viewer,mode:'online',
+   phase:phase==='over'?'over':'playing',
+   roundPhase:phase==='vote'?'vote':phase==='over'?'over':busy?'rolling':'roll',
+   players:players.map(p=>({...p,pieces:[...p.pieces]})),
+   turn,die:null,options:[],note:notes,voteHandled:phase!=='ready'&&phase!=='first-rolling',
+   finishOrder:[...finished],bots:[],lastRoll:rollEvent,lastMove:moveEvent,
+   vote:phase==='vote'?{
+    id:1,required:3,agreed:Object.values(responses).filter(Boolean).length,
+    myVote:Object.hasOwn(responses,viewer)?responses[viewer]:null
+   }:null,seq:++sequence
+  };
+ }
+ function emit(){receive(snapshot());updateControls();}
+ function reset(){
+  epoch++;for(const id of timers)clearTimeout(id);timers=[];
+  resetConnection();cancelDiceSpin();stopDiceShake();
+  players=initial();phase='ready';viewer=3;turn=3;notes='演示起点：青栖禾只差最后一枚棋子就完成了';
+  finished=[];responses={};rollEvent=null;moveEvent=null;sequence=0;moveSequence=0;rollSequence=0;busy=false;cycle=0;
+  el('demoViewer').value='3';
+  el('demoInfo').textContent='点击「模拟第一名冲线」，看第四枚棋子到终点和续赛投票弹窗。';
+  emit();placeCube(1);
+ }
+ function firstGoal(){
+  if(phase!=='ready'||busy)return;
+  const own=epoch;phase='first-rolling';busy=true;notes='青栖禾掷出 3 点，最后一枚棋子向终点前进';
+  turn=3;rollEvent={seq:++rollSequence,value:3};emit();
+  say('正在模拟青栖禾第 4 枚棋子进入终点。随后将出现续赛投票。');
+  later(()=>{
+   if(epoch!==own)return;
+   const p=players.find(p=>p.color===3);p.pieces[3]=55;p.finished=true;
+   finished=[3];phase='vote';notes='第一名已产生，等待真人玩家决定是否继续比赛';
+   moveEvent={seq:++moveSequence,color:3,piece:3,start:52,path:[{pos:53,kind:'骰点'},{pos:54,kind:'骰点'},{pos:55,kind:'骰点'}],flags:['到达终点'],die:3,goalOrdinal:4,hit:0,dialogue:''};
+   busy=false;emit();say('青栖禾已获得第一名。请在淡入弹窗中选择同意继续或结束结算；电脑不参与投票。');
+  },2900);
+ }
+ function endGame(reason){
+  if(phase==='over')return;
+  const dist=p=>Math.min(...p.pieces.filter(x=>x!==55).map(x=>x===-1?57:x===-2?56:55-x));
+  const remaining=players.filter(p=>!finished.includes(p.color)).sort((a,b)=>{
+   const ga=a.pieces.filter(v=>v===55).length,gb=b.pieces.filter(v=>v===55).length;
+   if(ga!==gb)return gb-ga;
+   return dist(a)-dist(b);
+  });
+  finished.push(...remaining.map(p=>p.color));
+  phase='over';busy=false;notes=reason;emit();
+  say('模拟比赛已结算。可切换观看视角检查不同玩家的排名，或重置再测。');
+ }
+ function castVote(agree){
+  if(phase!=='vote'||Object.hasOwn(responses,viewer))return;
+  const own=epoch;
+  responses[viewer]=agree;
+  if(!agree){endGame('有人选择结束比赛，按当前棋子进度结算');return;}
+  emit();say('你已同意。正在模拟其余两位真人玩家陆续投同意票……');
+  const remaining=realColors.filter(c=>c!==viewer&&!Object.hasOwn(responses,c));
+  remaining.forEach((color,index)=>later(()=>{
+   if(epoch!==own||phase!=='vote')return;
+   responses[color]=true;emit();
+   if(remaining.every(c=>responses[c]===true)){
+    later(()=>{
+     if(epoch!==own||phase!=='vote')return;
+     phase='continued';turn=0;cycle=0;busy=false;
+     notes='全员同意，继续比赛 · 轮到澄掷骰';
+     emit();
+     say('三位真人全部同意！第一名现在是观战者，骰子不能操作；可以按「观看下一回合」看别人继续走棋。');
+    },650);
+   }
+  },700+(index*800)));
+ }
+ function watchNext(){
+  if(phase!=='continued'||busy)return;
+  const own=epoch,p=players.find(p=>p.color===turn);
+  const candidate=p.pieces.map((pos,id)=>({pos,id})).filter(x=>x.pos>=0&&x.pos<=52).sort((a,b)=>b.pos-a.pos)[0];
+  if(!candidate){nextTurn();notes='轮到 '+names[turn]+' 掷骰';emit();return;}
+  const start=candidate.pos,ordinal=p.pieces.filter(x=>x===55).length;
+  busy=true;rollEvent={seq:++rollSequence,value:3};notes=names[turn]+' 掷出 3 点';
+  emit();say('观战中：'+names[turn]+' 掷骰并移动，第一名无需操作。');
+  later(()=>{
+   if(epoch!==own)return;
+   const final=start+3;p.pieces[candidate.id]=final;
+   moveEvent={seq:++moveSequence,color:p.color,piece:candidate.id,start,
+    path:[{pos:start+1,kind:'骰点'},{pos:start+2,kind:'骰点'},{pos:final,kind:'骰点'}],
+    flags:[],hit:0,die:3,goalOrdinal:final===55?ordinal+1:null,dialogue:''};
+   notes=names[turn]+' 已移动 3 格';
+   emit();
+   later(()=>{
+    if(epoch!==own)return;
+    nextTurn();busy=false;notes='观战中 · 轮到 '+names[turn]+' 掷骰';
+    emit();say('本回合结束，下一位是 '+names[turn]+'。可以继续观看下一回合。');
+   },850);
+  },2900);
+ }
+ function secondGoal(){
+  if(phase!=='continued'||busy||finished.includes(0))return;
+  const own=epoch;busy=true;turn=0;
+  const blue=players.find(p=>p.color===0);blue.pieces=[55,55,55,52];
+  notes='演示快进：澄只差最后一枚棋子即可完成';
+  emit();say('快进到澄只剩最后一枚棋子……');
+  later(()=>{
+   if(epoch!==own)return;
+   blue.pieces[3]=55;blue.finished=true;finished.push(0);
+   moveEvent={seq:++moveSequence,color:0,piece:3,start:52,
+    path:[{pos:53,kind:'骰点'},{pos:54,kind:'骰点'},{pos:55,kind:'骰点'}],
+    flags:['到达终点'],hit:0,die:3,goalOrdinal:4,dialogue:''};
+   notes='第二名：澄已完成全部棋子';
+   emit();
+   later(()=>{
+    if(epoch!==own)return;
+    turn=1;busy=false;notes='第一、第二名均已完成，继续观战剩余玩家';
+    emit();say('澄获得第二名。青栖禾和澄都进入观战状态，塔努利安与电脑亚洛继续比赛。');
+   },700);
+  },500);
+ }
+ // This page uses the real frontend renderer, but fake local state only:
+ // no actual room, server action, online identity or storage mutation.
+ el('continueYes').onclick=()=>castVote(true);
+ el('continueNo').onclick=()=>castVote(false);
+ el('settleNow').onclick=()=>endGame('玩家主动提前结束比赛，按当前进度结算');
+ el('roll').onclick=()=>{if(phase==='ready')firstGoal();else watchNext();};
+ el('gameBack').onclick=()=>{window.location.href='/';};
+ el('resultHome').onclick=reset;
+ el('restart').onclick=reset;
+ el('demoFinish').onclick=firstGoal;
+ el('demoNext').onclick=watchNext;
+ el('demoSecond').onclick=secondGoal;
+ el('demoReset').onclick=reset;
+ el('demoViewer').onchange=e=>{
+  viewer=Number(e.target.value);
+  emit();
+  say('已切换为 '+names[viewer]+' 的视角。'+(players.find(p=>p.color===viewer).finished?'这名玩家已完成，会显示观战提示。':'这名玩家仍在对局中。'));
+ };
+ reset();
+})();
+</script></body></html>
