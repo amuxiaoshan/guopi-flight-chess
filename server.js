@@ -361,6 +361,10 @@ function handleAction(data){
     r.note=`${p.name} 已重新接管棋子`;
     publish(r);
     if(r.roundPhase==='vote')finishVoteIfReady(r);
+    // If the client never establishes its SSE connection, restore computer
+    // control rather than leaving a newly resumed turn stuck.
+    if(r.phase==='playing'&&p.connections===0)
+      setTimeout(()=>takeOverDisconnectedSeat(r,p),DISCONNECT_TAKEOVER_MS);
     return {code:r.code,token:p.token,ok:true};
   }
   const r=findRoom(data.code), p=auth(r,data.token);
