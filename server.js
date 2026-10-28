@@ -548,7 +548,7 @@ const server=http.createServer(async(req,res)=>{
     return;
   }
   if(req.method==='GET'){
-    const known={'/':'index.html','/index.html':'index.html','/board.svg':'board.svg','/board-lineart.svg':'board-lineart.svg','/single.html':'single.html','/collision-test.html':'collision-test.html','/app.js':'app.js','/style.css':'style.css'};
+    const known={'/':'index.html','/index.html':'index.html','/board.svg':'board.svg','/board-lineart.svg':'board-lineart.svg','/single.html':'single.html','/collision-test.html':'collision-test.html','/goal-test.html':'goal-test.html','/app.js':'app.js','/style.css':'style.css'};
     const name=known[url.pathname];if(!name)fail('页面不存在',404);
     const type=name.endsWith('.html')?'text/html; charset=utf-8':name.endsWith('.css')?'text/css; charset=utf-8':name.endsWith('.js')?'text/javascript; charset=utf-8':'image/svg+xml';
     const data=fs.readFileSync(path.join(root,name));res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'});res.end(data);return;
