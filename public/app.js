@@ -502,10 +502,11 @@ function svg(tag,props,parent){const el=document.createElementNS(NS,tag);Object.
 function piecePosition(p,id){if(animPiece?.color===p.color&&animPiece?.id===id)return animPiece.pos;return p.pieces[id];}
 // Popoya artwork is displayed at its original aspect ratio, with no altered pixels.
 // A larger screen-space token is necessary for the detailed chibi face to be readable.
-const POPOYA_SIZE_KEY='guopi_popoya_piece_diameter';
+// V2 ignores the previous oversized default / preference from the first preview.
+const POPOYA_SIZE_KEY='guopi_popoya_piece_diameter_v2';
 function popoyaDiameter(){
- try{const n=Number(localStorage.getItem(POPOYA_SIZE_KEY));if(Number.isFinite(n)&&n>=64&&n<=108)return n;}catch{}
- return 104; // Original version was 48; default now more than twice as large.
+ try{const n=Number(localStorage.getItem(POPOYA_SIZE_KEY));if(Number.isFinite(n)&&n>=48&&n<=80)return n;}catch{}
+ return 60; // Full diameter INCLUDING the dark outline.
 }
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
@@ -527,8 +528,8 @@ function drawPieces(){
   // Mixed-color stacks share the same square; give each piece a visible seat.
   const packed=count>1, hasPopoya=pack.some(item=>item.p.role==='E');
   const spacing=packed?(hasPopoya?44:30):0;
-  const radius=p.role==='E'?(packed?Math.round(popoyaSize*.29):popoyaSize/2):(packed?17:24);
-  const border=p.role==='E'?(packed?4:5):(packed?3.5:5), fontSize=packed?16:22;
+  const radius=p.role==='E'?(packed?Math.min(20,Math.round(popoyaSize*.34)):popoyaSize/2):(packed?17:24);
+  const border=p.role==='E'?(packed?4:6):(packed?3.5:5), fontSize=packed?16:22;
   const dx=packed?(i%colCount-(colCount-1)/2)*spacing:0;
   const dy=packed?(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*spacing:0;
   const canSelect=state.viewerColor===p.color&&state.turn===p.color&&state.roundPhase==='choose'&&state.options.length>1&&state.options.includes(id)&&!animPiece;
@@ -537,10 +538,11 @@ function drawPieces(){
    const peak=-(radius+(packed?16:28));
    svg('path',{d:`M-10 ${peak} L10 ${peak} L0 ${peak+14}Z`,fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
   if(p.role==='E'){
-   // Original 256x256 PNG remains unedited: white outline and transparency intact.
-   // The team color fills only the circular game-piece background.
-   svg('circle',{r:radius,fill:COLOR[p.color].hex,stroke:COLOR[p.color].hex,'stroke-width':border},group);
-   svg('image',{href:'/assets/popoya-original.png',x:-radius,y:-radius,width:radius*2,height:radius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
+   // Only the SOLID-COLORED ROUND BASE receives the dark stroke.
+   // Popoya's original PNG and its pre-existing white outline are untouched.
+   const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed?4:5);
+   svg('circle',{r:discRadius,fill:COLOR[p.color].hex,stroke:'#111111','stroke-width':rim},group);
+   svg('image',{href:'/assets/popoya-original.png',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
   }else{
    svg('circle',{r:radius,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':border},group);
    const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
