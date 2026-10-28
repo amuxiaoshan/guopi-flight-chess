@@ -904,42 +904,30 @@ async function animateRoll(n){
  }
  $('roll').classList.add('pivoting');
  const tip='100% 100% 31px';
- // Translation centers the contacting corner in the button and 6px above its foot.
+ // The selected corner stays fixed; the tilt and final face change are instant cuts.
  const spin=deg=>`translate3d(-31px,-6px,0px) rotateY(${deg}deg) rotate3d(-1,0,1,54.7356deg)`;
- const last=`rotateX(${x}deg) rotateY(${y}deg)`;
- const first=cube.style.transform||'rotateX(0deg) rotateY(0deg)';
- const frames=[
-  {offset:0,transform:first,transformOrigin:'50% 50% 0px',easing:'ease-out'},
-  {offset:0.11,transform:spin(0),transformOrigin:tip,easing:'ease-in'},
-  {offset:0.29,transform:spin(360),transformOrigin:tip,easing:'linear'},
-  {offset:0.52,transform:spin(900),transformOrigin:tip,easing:'linear'},
-  {offset:0.77,transform:spin(1350),transformOrigin:tip,easing:'ease-out'},
-  {offset:0.88,transform:spin(1500),transformOrigin:tip,easing:'ease-out'},
-  {offset:0.94,transform:`translate3d(-27px,-6px,0px) rotateY(1530deg) rotate3d(-1,0,1,35deg)`,transformOrigin:tip,easing:'ease-out'},
-  {offset:1,transform:last,transformOrigin:'50% 50% 0px'}
- ];
- const duration=2560; // The trimmed shake/roll audio is approximately 2.5s.
+ const duration=2560; // Same duration as the trimmed recorded shake and throw.
+ cube.style.transition='none';
+ cube.style.transformOrigin=tip;
+ cube.style.transform=spin(0); // Cut straight from the resting face to the tilted pose.
  if(typeof cube.animate==='function'){
   try{
-   const anim=cube.animate(frames,{duration,easing:'linear',fill:'forwards'});
+   const anim=cube.animate([{transform:spin(0)},{transform:spin(1440)}],{
+    duration,easing:'linear',fill:'forwards'
+   });
    diceSpinAnimation=anim;
    await anim.finished;
   }catch{if(own!==rollSerial)return;}
  }else{
-  // Simple accessible fallback for older browsers lacking Web Animations.
-  cube.style.transition='transform 2.35s ease-out';
-  cube.style.transformOrigin=tip;
-  cube.style.transform=spin(1260);
-  await sleep(2350);
-  if(own!==rollSerial)return;
-  cube.style.transition='transform .21s ease-out';
-  cube.style.transformOrigin='50% 50% 0px';
-  cube.style.transform=last;
-  await sleep(210);
+  // Fallback: animate only the rotation, never the entry/exit pose.
+  void cube.offsetWidth;
+  cube.style.transition=`transform ${duration}ms linear`;
+  cube.style.transform=spin(1440);
+  await sleep(duration);
  }
  if(own!==rollSerial)return;
- placeCube(n);
- // The server keeps the result visible for another ~0.8s before progressing.
+ placeCube(n); // Instantly reveal the final face, without landing or fade animation.
+ // The server still holds this face on screen before progressing.
  $('diceStatus').textContent=`${n} 点`;
 }
 async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start};drawPieces();
