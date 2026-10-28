@@ -562,7 +562,7 @@ function playStepPop(){
   oscillator.frequency.setValueAtTime(950,t);
   oscillator.frequency.exponentialRampToValueAtTime(590,t+0.055);
   envelope.gain.setValueAtTime(0.0001,t);
-  envelope.gain.exponentialRampToValueAtTime(0.20,t+0.003);
+  envelope.gain.exponentialRampToValueAtTime(0.75,t+0.003);
   envelope.gain.exponentialRampToValueAtTime(0.0001,t+0.065);
   oscillator.connect(envelope);envelope.connect(audio.destination);
   oscillator.start(t);oscillator.stop(t+0.070);
