@@ -214,6 +214,8 @@ function resetConnection(){cancelDiceSpin();stopDiceShake();if(events){events.cl
 function home(){resetConnection();code='';authToken='';myRoomMode='';pendingExit=false;screen('welcome');history.replaceState(null,'',location.pathname);refreshReturnSeat();}
 function connect(){
  resetConnection();
+ // Save the seat before opening the live connection, so reopening the browser can reclaim it.
+ if(code&&authToken){try{localStorage.setItem(RETURN_SEAT_KEY,JSON.stringify({code,authToken}));}catch{}}
  events=new EventSource(`/api/events?code=${encodeURIComponent(code)}&token=${encodeURIComponent(authToken)}`);
  events.onmessage=e=>{try{receive(JSON.parse(e.data));}catch(err){console.error(err);toast('更新房间画面时出了问题');}};
  events.onerror=async()=>{
@@ -298,7 +300,7 @@ function syncVotePrompt(){
  const winner=state.players.find(p=>p.color===state.finishOrder[0]);
  $('continueTitle').textContent=`第一名：${winner?winner.role==='?'?winner.name:roleName(winner.role):'已产生'}`;
  $('continueText').textContent='是否继续观看剩余比赛？只有所有在场的真人玩家都同意才会继续。已完成的玩家转为观战，电脑不需要投票。';
- $('continueProgress').textContent=`已同意 ${v.agreed}/${v.required} 人 · 超时将自动结算`;
+ $('continueProgress').textContent=`已同意 ${v.agreed}/${v.required} 人 · 等待其余真人玩家选择`;
  $('continueYes').disabled=v.myVote===true;
  $('continueNo').disabled=v.myVote===false;
  if(!el.classList.contains('open')&&!voteFadeTimer){
@@ -312,7 +314,7 @@ function syncVotePrompt(){
 }
 $('continueYes').onclick=()=>action({type:'vote',agree:true});
 $('continueNo').onclick=()=>action({type:'vote',agree:false});
-$('settleNow').onclick=()=>dialog('提前结算比赛？','将按已到终点的棋子数量、再按剩余总距离排列名次。这个操作会结束所有人的当前比赛。',()=>action({type:'end-early'}));
+$('settleNow').onclick=()=>dialog('提前结算比赛？','将按已到终点的棋子数量、再按最近的棋子距终点的格数排列名次。这个操作会结束所有人的当前比赛。',()=>action({type:'end-early'}));
 function showRankDetails(){
  const order=state?.finishOrder||[];
  $('rankDetail').innerHTML=order.map((color,index)=>{
@@ -329,6 +331,7 @@ function receive(next){
  if(next.phase==='closed'){
    const leaving=pendingExit,reason=next.closeReason||'房间已结束。';
    sessionStorage.removeItem('flight_room');
+   if(savedReturnSeat()?.code===code)try{localStorage.removeItem(RETURN_SEAT_KEY);}catch{}
    home();
    if(!leaving)dialog('房间已结束',reason);
    return;
@@ -417,6 +420,7 @@ async function leaveRoom(){
  const result=await action({type:'leave'});
  if(!result){pendingExit=false;return;}
  if(result.auto){try{localStorage.setItem(RETURN_SEAT_KEY,JSON.stringify({code,authToken}));}catch{}}
+ else if(savedReturnSeat()?.code===code)try{localStorage.removeItem(RETURN_SEAT_KEY);}catch{}
  sessionStorage.removeItem('flight_room');
  home();
 }
@@ -500,7 +504,7 @@ function renderGame(){
  const turnPlayer=state.players.find(p=>p.color===state.turn);
  const mine=state.viewerColor===state.turn;
  const phases={roll:mine?'点击骰子':'等待掷骰',choose:state.options?.length>1?(mine?'点击发光的棋子':'正在选择棋子'):'唯一可动棋子自动前进',moving:'正在移动棋子',rolling:'正在掷骰子'};
- $('status').textContent=state.note||`${turnPlayer?.name||'玩家'} 的回合`;
+ $('status').textContent=turnPlayer&&(turnPlayer.kind==='ai'||turnPlayer.auto)?roleName(turnPlayer.role):(state.note||`${turnPlayer?.name||'玩家'} 的回合`);
  $('detail').textContent=state.roundPhase==='choose'&&state.die?`骰子 ${state.die} 点 · ${phases.choose}`:(phases[state.roundPhase]||'');
  $('roll').disabled=!(mine&&!self?.auto&&state.roundPhase==='roll');
  $('settleNow').hidden=state.phase!=='playing';
