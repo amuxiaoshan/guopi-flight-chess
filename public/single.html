@@ -819,7 +819,7 @@ $('soundToggle').onclick=()=>{
  try{localStorage.setItem(SOUND_PREF,goalSoundEnabled?'on':'off');}catch{}
  refreshSoundToggle();
  if(!goalSoundEnabled)stopDiceShake();
- playToggleClick(); // Short retro click for both toggle states.
+ if(goalSoundEnabled)playToggleClick(); // Only confirm when turning sound on.
 };
 document.addEventListener('pointerdown',prepareGoalAudio,{passive:true});
 document.addEventListener('keydown',prepareGoalAudio);
