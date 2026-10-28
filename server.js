@@ -185,6 +185,12 @@ function closeRoom(room,reason){
   for(const conn of room.clients){try{conn.res.end();}catch{}}
   room.clients.clear();
 }
+// An empty human audience should never leave an AI-only match running.
+function closeIfOnlyComputers(room){
+  if(room.phase!=='playing'||room.players.some(p=>p.kind==='human'&&!p.auto))return false;
+  closeRoom(room,'所有真人玩家均已离开，房间已自动关闭。');
+  return true;
+}
 function fail(message, status=400){ const e=new Error(message);e.status=status;throw e; }
 function findRoom(code){const r=rooms.get(cleanCode(code));if(!r)fail('房间不存在或已经过期',404);return r;}
 function auth(room,userToken){const p=room.players.find(x=>x.kind==='human'&&x.token===userToken);if(!p)fail('没有加入该房间，请重新通过邀请码进入',403);return p;}
@@ -212,7 +218,7 @@ function settleMatch(room,reason='本局结束'){
 function finishVoteIfReady(room){
  if(!room.vote||room.roundPhase!=='vote')return;
  const active=room.players.filter(p=>p.kind==='human'&&!p.auto);
- if(!active.length){settleMatch(room,'没有真人继续观战，本局提前结算');return;}
+ if(!active.length){closeIfOnlyComputers(room);return;}
  if(active.every(p=>room.vote.responses[p.color]===true)){
   room.vote=null;room.note='全员同意，继续比赛';
   advance(room);
@@ -246,6 +252,7 @@ const DISCONNECT_TAKEOVER_MS=6500;
 function takeOverDisconnectedSeat(room,p){
  if(rooms.get(room.code)!==room||room.phase!=='playing'||p.kind!=='human'||p.connections!==0||p.auto)return;
  p.auto=true;p.autoReason='offline';
+ if(closeIfOnlyComputers(room))return;
  room.note=`${p.name} 暂时离线，电脑接管`;
  publish(room);
  if(room.roundPhase==='vote')finishVoteIfReady(room);
@@ -424,6 +431,7 @@ function handleAction(data){
   if(type==='leave'){
     if(r.phase==='playing'){
       p.auto=true;p.autoReason='left';
+      if(closeIfOnlyComputers(r))return {ok:true,closed:true};
       for(const conn of [...r.clients].filter(c=>c.token===p.token)){
         r.clients.delete(conn);try{conn.res.end();}catch{}
       }
