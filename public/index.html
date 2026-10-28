@@ -12,7 +12,7 @@
   <p id="inviteNotice" class="inviteNotice" hidden>收到房间邀请啦。填写昵称，再点击「加入房间」即可。</p>
   <p class="sub">单人可选 1～3 个电脑。多人支持 2～4 个真人，并可由房主补电脑。</p>
  </div>
- <div class="footerlinks"><button id="rulesHome" class="textbutton">游戏规则</button><a href="/single.html" download="适得棋所_离线单人版.html" title="下载后可断网打开游玩">下载离线版（断网可玩）</a></div>
+ <div class="footerlinks"><button id="rulesHome" class="textbutton">游戏规则</button><button id="soundTestHome" class="textbutton" type="button">试听音效</button><a href="/single.html" download="适得棋所_离线单人版.html" title="下载后可断网打开游玩">下载离线版（断网可玩）</a></div>
 </section>
 <section id="lobby" class="screen">
  <header class="nav"><button id="exitLobby" class="back" aria-label="返回">‹</button><strong>房间准备</strong><span class="navfiller"></span></header>
@@ -33,6 +33,7 @@
  <div class="boardselection" id="boardSelection">本次选择<strong id="boardSelectedRole">【角色】</strong></div>
   <div class="gametext"><strong id="status">等待行动</strong><small id="detail"></small></div>
  <div class="dicearea"><button id="roll" class="dice" aria-label="点击投掷骰子"><span class="cube" id="cube"><span class="face front" data-face="1"></span><span class="face back" data-face="6"></span><span class="face right" data-face="3"></span><span class="face left" data-face="4"></span><span class="face top" data-face="5"></span><span class="face bottom" data-face="2"></span></span></button><span id="diceStatus" class="hint">等待掷骰</span></div>
+ <div class="sound-test-row"><button id="soundTestGame" class="textbutton" type="button">试听音效</button></div>
  <div id="gameHint" class="bottomgame sub">轮到自己时掷骰 · 可选的棋子会显示光圈和小三角</div>
 </section>
 <section id="result" class="screen result">
