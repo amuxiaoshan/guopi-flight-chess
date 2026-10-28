@@ -423,7 +423,7 @@ function renderLobby(){
  const specs=[...state.players.map(p=>({...p,fromBot:false})),...state.bots.map((b,i)=>({name:`电脑 ${i+1}`,role:b.role,color:b.color,kind:'ai',fromBot:true}))];
  $('seats').replaceChildren();
  specs.sort((a,b)=>a.color-b.color).forEach(p=>{
-  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(roleName(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${state.mode!=='solo'&&p.kind==='human'&&p.color===state.hostColor?'（房主）':''}</div></div>`;
+  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(roleName(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${state.mode!=='solo'&&p.kind==='human'&&p.color===state.hostColor?(state.hostAwayUntil?'（房主暂离）':'（房主）'):''}</div></div>`;
   $('seats').appendChild(div);
  });
  $('botControl').hidden=!state.host;
@@ -432,6 +432,7 @@ function renderLobby(){
  $('startGame').textContent=state.canStart?'开始游戏':'等待其他玩家／添加电脑';
  const humans=state.players.length;
  $('lobbyHint').textContent=state.mode==='solo'?'选择 1～3 个电脑，还可以分别调整它们的角色与颜色。':`真人 ${humans} 人 · 电脑 ${state.bots.length} 人。真人可重复角色，阵营颜色不重复；电脑由房主设置。${state.host&&['localhost','127.0.0.1'].includes(location.hostname)?' 邀请其他设备前，请改用房主的局域网IP或公网网址打开房间。':''}${state.canStart?'':' 至少需要两方，邀请朋友或添加一个电脑才能开始。'}`;
+ if(state.hostAwayUntil&&state.mode==='online')$('lobbyHint').textContent+=' 房主暂离，三分钟后将按入房顺序移交给下一位在线真人；原房主在期限内回来则不移交。';
  if(state.host){
   const max=4-humans;
   const min=state.mode==='solo'?1:0;
@@ -478,11 +479,11 @@ async function leaveRoom(){
 function isSoloMode(){return state?.mode==='solo'||myRoomMode==='solo';}
 function exitSetup(){
  if(state?.phase==='playing'){
-  dialog('退出当前比赛？','如果还有真人留在房间，电脑会接管你的棋子，你之后可以重新进入；如果你是最后一位真人，房间会立即关闭。',leaveRoom);
+  dialog('退出当前比赛？','如果还有真人留在房间，电脑会接管你的棋子，你之后可以重新进入；房主离开超过三分钟会按入房顺序移交。若你是最后一位真人，房间会立即关闭。',leaveRoom);
   return;
  }
  if(isSoloMode()){leaveRoom();return;}
- if(state?.host)dialog('退出准备房间？','离开准备房间会解散房间。',leaveRoom);
+ if(state?.host)dialog('暂时离开房间？','你的房主身份会保留三分钟；期间返回可以继续担任房主。超过三分钟仍未回来，会依最初入房顺序移交给下一位在线真人。',leaveRoom);
  else dialog('退出准备房间？','确定退出房间并释放座位？',leaveRoom);
 }
 $('leave').onclick=exitSetup;
@@ -536,22 +537,23 @@ function renderGame(){
  $('boardSelectedRole').style.setProperty('--selected-color',self?COLOR[self.color].hex:'#878b91');
  $('playerStrip').innerHTML=ORDER.map(c=>state.players.find(p=>p.color===c)).filter(Boolean).map(p=>{
  const count=p.pieces.filter(v=>v===GOAL).length;
- const canTransfer=state.host&&state.mode==='online'&&p.kind==='human'&&p.color!==state.viewerColor;
+ const canTransfer=state.host&&state.mode==='online'&&p.kind==='human'&&!p.auto&&p.connected&&p.color!==state.viewerColor;
  const avatar=canTransfer
   ? `<button type="button" class="tiny host-transfer-avatar" style="--color:${COLOR[p.color].hex}" data-transfer-color="${p.color}" aria-label="移交房主给${escapeHTML(p.name)}" title="点击头像移交房主">${escapeHTML(roleMark(p.role))}</button>`
   : `<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div>`;
- const hostMark=p.kind==='human'&&p.color===state.hostColor?'<span class="host-tag">房主</span>':'';
+ const hostMark=p.kind==='human'&&p.color===state.hostColor?`<span class="host-tag">房主${state.hostAwayUntil?'·暂离':''}</span>`:'';
  return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}">${avatar}<div title="${escapeHTML(roleName(p.role))}" class="seatname seatrole">${escapeHTML(roleName(p.role))}</div><small title="${escapeHTML(p.name)}">${p.kind==='ai'?'电脑':p.auto?'电脑托管':escapeHTML(p.name)}</small><small>${count}/4 已到终点</small>${hostMark}</div>`;
  }).join('');
  $('playerStrip').querySelectorAll('[data-transfer-color]').forEach(button=>{
    button.onclick=()=>{
      const target=state?.players.find(p=>p.kind==='human'&&p.color===Number(button.dataset.transferColor));
      if(!state?.host||state.phase!=='playing'||!target)return;
-     dialog('确认移交房主？',`将房主身份交给「${target.name}」吗？移交后对方拥有房主权限；如果对方退出，整个房间将解散。`,()=>action({type:'transfer-host',targetColor:target.color}));
+     dialog('确认移交房主？',`将房主身份交给「${target.name}」吗？移交后对方拥有房主权限；若新房主离开超过三分钟，房主身份将继续按入房顺序移交给其他在线真人。`,()=>action({type:'transfer-host',targetColor:target.color}));
    };
  });
  $('gameHint').textContent=state.host&&state.mode==='online'&&state.players.filter(p=>p.kind==='human').length>1?'房主可点击其他玩家的头像移交房主 · 轮到自己时掷骰':'轮到自己时掷骰 · 可选的棋子会显示光圈和小三角';
  if(self?.finished&&state.voteHandled&&state.roundPhase!=='vote')$('gameHint').textContent='你已完成全部棋子，当前正在观战。';
+ if(state.hostAwayUntil&&state.mode==='online')$('gameHint').textContent+=' 房主暂离；三分钟后将自动移交给下一位在线真人。';
  const turnPlayer=state.players.find(p=>p.color===state.turn);
  const mine=state.viewerColor===state.turn;
  const phases={roll:mine?'点击骰子':'等待掷骰',choose:state.options?.length>1?(mine?'点击发光的棋子':'正在选择棋子'):'唯一可动棋子自动前进',moving:'正在移动棋子',rolling:'正在掷骰子'};
@@ -640,7 +642,7 @@ async function animateMove(move){$('bubble').style.display='none';const mine=++a
  await sleep(100);if(mine!==animationSerial)return;animPiece=null;drawPieces();
  if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
-function rules(){dialog('游戏说明','每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。');}
+function rules(){dialog('游戏说明','每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。房主离开三分钟后按真人原始入房顺序移交，期间回来保留房主身份。');}
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
 initDice();placeCube(1);
 refreshReturnSeat();
