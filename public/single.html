@@ -874,8 +874,8 @@ async function animateRoll(n){const own=++rollSerial;const cube=$('cube');const 
    setTimeout(()=>{if(own===rollSerial)playDiceTap(ms===570);},ms);
   }
  }
- cube.style.transition='transform .64s cubic-bezier(.18,.65,.2,1)';cube.style.transform=`rotateX(${720+x}deg) rotateY(${1080+y}deg)`;
- await sleep(660);if(own!==rollSerial)return;
+ cube.style.transition='transform 3.2s cubic-bezier(.18,.65,.2,1)';cube.style.transform=`rotateX(${2160+x}deg) rotateY(${3240+y}deg)`;
+ await sleep(3220);if(own!==rollSerial)return;
  // Let the four-second recorded clip finish naturally.
  cube.style.transition='none';cube.style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;$('roll').setAttribute('aria-label',`骰子：${n} 点`);
 }
