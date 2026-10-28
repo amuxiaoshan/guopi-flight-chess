@@ -307,7 +307,9 @@ function performMove(room,p,id){
   room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
   if(p.pieces.every(v=>v===GOAL)&&!p.finished){p.finished=true;room.finishOrder.push(p.color);}
   publish(room);
-  const duration = Math.max(450,plan.path.length*150+220);
+  // Match the visual step-by-step movement, then leave a short pause before the next turn.
+  const travelMs=plan.path.reduce((ms,step)=>ms+(step.kind==='飞跃'?260:step.kind==='跳格'?230:140),0);
+  const duration = Math.max(850,travelMs+530);
   setTimeout(()=>{
     if(room.phase!=='playing'||room.roundPhase!=='moving')return;
     if(room.finishOrder.length>=room.players.length-1){advance(room);return;}
@@ -315,24 +317,33 @@ function performMove(room,p,id){
     else advance(room);
   },duration);
 }
+// Keep the result visible after the trimmed 2.56 s sound and 2.45 s animation.
+const ROLL_REVEAL_MS=3350;
 function roll(room,p){
   if(room.phase!=='playing'||room.roundPhase!=='roll'||room.turn!==p.color)fail('还没有轮到你掷骰');
   const n=1+rand(6);room.die=n;room.lastRoll={seq:room.seq+1,color:p.color,value:n};
+  const rollSeq=room.lastRoll.seq;
   room.sixStreak=n===6?room.sixStreak+1:0;
   const overSix=room.sixStreak>=3;
-  if(overSix){p.pieces=p.pieces.map(v=>v===GOAL?GOAL:-1);room.roundPhase='rolling';room.note=`${p.name} 连续三次掷出 6，未完成棋子回基地`;}
-  else {
-    room.options=available(p,n);room.roundPhase=room.options.length?'choose':'rolling';
-    room.note=room.options.length?`${p.name} 掷出了 ${n} 点`:`${p.name} 掷出 ${n} 点，没有可移动的棋子`;
-  }
+  if(overSix)p.pieces=p.pieces.map(v=>v===GOAL?GOAL:-1);
+  room.options=overSix?[]:available(p,n);
+  const resultNote=overSix?`${p.name} 连续三次掷出 6，未完成棋子回基地`:
+    room.options.length?`${p.name} 掷出了 ${n} 点`:`${p.name} 掷出 ${n} 点，没有可移动的棋子`;
+  room.roundPhase='rolling';
+  room.note=`${p.name} 正在掷骰子`;
   publish(room);
-  if(room.roundPhase==='rolling')setTimeout(()=>{
-    if(room.phase!=='playing'||room.roundPhase!=='rolling')return;
-    if(n===6&&!overSix){room.roundPhase='roll';publish(room);runAI(room);}
-    else advance(room);
-  },1000);
-  else if(p.kind==='ai')setTimeout(()=>{
-    if(room.phase==='playing'&&room.roundPhase==='choose'&&room.turn===p.color){
+  // Game progression is server-authoritative; no move or turn change can race the dice animation.
+  setTimeout(()=>{
+    if(room.phase!=='playing'||room.roundPhase!=='rolling'||room.turn!==p.color||room.lastRoll?.seq!==rollSeq)return;
+    room.note=resultNote;
+    if(!room.options.length){
+      if(n===6&&!overSix){room.roundPhase='roll';publish(room);runAI(room);}
+      else advance(room);
+      return;
+    }
+    room.roundPhase='choose';publish(room);
+    if(p.kind==='ai')setTimeout(()=>{
+      if(room.phase==='playing'&&room.roundPhase==='choose'&&room.turn===p.color){
       const options=room.options.map(id=>{
         const pl=projection(p.pieces[id],room.die);let score=(pl.to===GOAL?300:pl.to*1.2)+(p.pieces[id]<0?30:0);
         const at=keyOnBoard(p.color,pl.to);
@@ -347,11 +358,12 @@ function roll(room,p){
         score+=rand(20);return {id,score};
       }).sort((a,b)=>b.score-a.score);
       performMove(room,p,options[0].id);
-    }
-  },700);
-  else if(room.options.length===1){setTimeout(()=>{
-    if(room.phase==='playing'&&room.roundPhase==='choose'&&room.turn===p.color&&room.options.length===1)performMove(room,p,room.options[0]);
-  },550);}
+      }
+    },570);
+    else if(room.options.length===1)setTimeout(()=>{
+      if(room.phase==='playing'&&room.roundPhase==='choose'&&room.turn===p.color&&room.options.length===1)performMove(room,p,room.options[0]);
+    },500);
+  },ROLL_REVEAL_MS);
 }
 function runAI(room){
   if(room.phase!=='playing'||room.roundPhase!=='roll')return;
