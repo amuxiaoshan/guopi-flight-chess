@@ -8,37 +8,45 @@ h2{font-size:14px;margin:16px 0 9px}.colors{display:grid;grid-template-columns:r
 </style></head>
 <body><main><a href="/">‹ 返回正式游戏</a><h1>波波亚 · 棋子试装</h1>
 <p>试装只使用原始 256×256 透明 PNG，白边和所有绘制像素保持原样。蓝、黄、绿、红四种背景圆片对应玩家阵营。</p>
-<div class="resize"><label for="pieceSize">调整波波亚棋子大小 <output id="sizeText">104 单位</output></label><input type="range" id="pieceSize" min="64" max="108" step="4" value="104"><small>原先只有 48 单位，现在默认放大至 104 单位。拖动后棋盘会实时预览，并自动保存到当前浏览器中的正式游戏。</small><div><button type="button" id="resetSize">恢复推荐大小 104</button></div></div><h2>四种棋子颜色</h2><div id="colors" class="colors"></div>
+<div class="resize"><label for="pieceSize">调整彩色圆棋子的直径 <output id="sizeText">60 单位</output></label><input type="range" id="pieceSize" min="48" max="80" step="4" value="60"><small>现在默认直径 60（包括黑色描边）。调整的是纯色圆形底板和原图显示尺寸，不修改娃稿；实时预览并保存到正式网页版。</small><div><button type="button" id="resetSize">恢复推荐大小 60</button></div></div><h2>四种棋子颜色</h2><div id="colors" class="colors"></div>
 <h2>棋盘上的实际比例</h2><div class="board"><img src="/board.svg" alt="飞行棋棋盘"><svg id="board" viewBox="0 0 900 900" aria-label="四种颜色的波波亚棋子在棋盘上的样子"></svg></div>
 <h2>大小对比（对应正式游戏绘图尺寸）</h2><div class="sampleRow">
 <div class="stack"><svg id="before" viewBox="-64 -64 128 128"></svg><p>修改前 · 48 单位</p></div>
-<div class="stack"><svg id="normal" viewBox="-64 -64 128 128"></svg><p id="normalLabel">修改后 · 104 单位</p></div>
-<div class="stack"><svg id="packed" viewBox="-64 -64 128 128"></svg><p id="packedLabel">多人堆叠 · 60 单位</p></div>
+<div class="stack"><svg id="normal" viewBox="-64 -64 128 128"></svg><p id="normalLabel">描黑边 · 60 单位</p></div>
+<div class="stack"><svg id="packed" viewBox="-64 -64 128 128"></svg><p id="packedLabel">多人堆叠 · 40 单位</p></div>
 </div>
-<div class="note">娃稿 PNG、透明底和白边全部保持原样，只调整网页上的显示宽度。放大版可能稍微遮住相邻棋盘格，这是为了让五官更容易辨认。调好后点上方「返回正式游戏」，刷新即可看效果。离线版默认采用 104 单位，不读取这里的网站设置。</div>
+<div class="note">黑色粗线只画在阵营色圆形底板的外缘，绝不描波波亚娃稿；原图 PNG、透明底和白边都不变。直径 60 包含黑色描边，其他棋子仍使用原样。离线版默认同为 60，不读取网页版保存的滑块设置。</div>
 </main>
 <script>
 const NS='http://www.w3.org/2000/svg',ASSET='/assets/popoya-original.png';
 const COLORS=[{name:'红色',hex:'#ef5350',point:[450,150]},{name:'黄色',hex:'#f6c945',point:[750,450]},{name:'绿色',hex:'#58c26a',point:[150,450]},{name:'蓝色',hex:'#41a7f5',point:[450,750]}];
 function svg(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,String(v));parent.appendChild(e);return e;}
-const KEY='guopi_popoya_piece_diameter';
-function getSize(){try{const n=Number(localStorage.getItem(KEY));if(n>=64&&n<=108)return n;}catch{}return 104;}
-function token(parent,x,y,hex,r=24){
+const KEY='guopi_popoya_piece_diameter_v2';
+function getSize(){try{const n=Number(localStorage.getItem(KEY));if(n>=48&&n<=80)return n;}catch{}return 60;}
+function token(parent,x,y,hex,r=30,isPacked=false){
  const g=svg('g',{transform:'translate('+x+' '+y+')'},parent);
- svg('circle',{r,fill:hex,stroke:hex,'stroke-width':r>30?5:4},g);
- svg('image',{href:ASSET,x:-r,y:-r,width:r*2,height:r*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},g);
+ // Black border belongs to the plain team-color circle, NOT the PNG outline.
+ const strokeWidth=isPacked?4:6,artRadius=r-(isPacked?4:5);
+ svg('circle',{r:r-strokeWidth/2,fill:hex,stroke:'#111111','stroke-width':strokeWidth},g);
+ svg('image',{href:ASSET,x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},g);
+ return g;
+}
+function originalToken(parent,x,y,hex){
+ const g=svg('g',{transform:'translate('+x+' '+y+')'},parent);
+ svg('circle',{r:24,fill:hex,stroke:hex,'stroke-width':5},g);
+ svg('image',{href:ASSET,x:-24,y:-24,width:48,height:48,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},g);
  return g;
 }
 function render(){
- const n=Number(document.getElementById('pieceSize').value),packed=Math.round(n*.29),node=document.getElementById('colors');
+ const n=Number(document.getElementById('pieceSize').value),packed=Math.min(20,Math.round(n*.34)),node=document.getElementById('colors');
  document.getElementById('sizeText').textContent=n+' 单位';
- document.getElementById('normalLabel').textContent='修改后 · '+n+' 单位';
+ document.getElementById('normalLabel').textContent='黑边圆底 · '+n+' 单位';
  document.getElementById('packedLabel').textContent='多人堆叠 · '+packed*2+' 单位';
  node.replaceChildren();
  document.getElementById('board').replaceChildren();
  for(const c of COLORS){
   const wrap=document.createElement('div');wrap.className='sample';
-  const pic=document.createElementNS(NS,'svg');pic.setAttribute('viewBox','-60 -60 120 120');pic.setAttribute('aria-label',c.name+'棋子');
+  const pic=document.createElementNS(NS,'svg');pic.setAttribute('viewBox','-47 -47 94 94');pic.setAttribute('aria-label',c.name+'棋子');
   token(pic,0,0,c.hex,n/2);
   wrap.appendChild(pic);
   const name=document.createElement('b');name.textContent=c.name;wrap.appendChild(name);node.appendChild(wrap);
@@ -47,9 +55,9 @@ function render(){
  document.getElementById('before').replaceChildren();
  document.getElementById('normal').replaceChildren();
  document.getElementById('packed').replaceChildren();
- token(document.getElementById('before'),0,0,COLORS[0].hex,24);
+ originalToken(document.getElementById('before'),0,0,COLORS[0].hex);
  token(document.getElementById('normal'),0,0,COLORS[0].hex,n/2);
- token(document.getElementById('packed'),0,0,COLORS[0].hex,packed);
+ token(document.getElementById('packed'),0,0,COLORS[0].hex,packed,true);
 }
 document.getElementById('pieceSize').value=String(getSize());
 document.getElementById('pieceSize').addEventListener('input',e=>{
@@ -58,8 +66,8 @@ document.getElementById('pieceSize').addEventListener('input',e=>{
  render();
 });
 document.getElementById('resetSize').addEventListener('click',()=>{
- document.getElementById('pieceSize').value='104';
- try{localStorage.setItem(KEY,'104');}catch{}
+ document.getElementById('pieceSize').value='60';
+ try{localStorage.setItem(KEY,'60');}catch{}
  render();
 });
 render();
