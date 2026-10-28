@@ -1091,10 +1091,10 @@ const POPOYA_PNG='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABc
 // Popoya artwork is displayed at its original aspect ratio, with no altered pixels.
 // A larger screen-space token is necessary for the detailed chibi face to be readable.
 // V2 ignores the previous oversized default / preference from the first preview.
-const POPOYA_SIZE_KEY='guopi_popoya_piece_diameter_v2';
+const POPOYA_SIZE_KEY='guopi_popoya_piece_diameter_v3';
 function popoyaDiameter(){
  try{const n=Number(localStorage.getItem(POPOYA_SIZE_KEY));if(Number.isFinite(n)&&n>=48&&n<=80)return n;}catch{}
- return 60; // Full diameter INCLUDING the dark outline.
+ return 70; // Full diameter including the subtle black ring; board lines are 2.4 units.
 }
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
@@ -1117,7 +1117,7 @@ function drawPieces(){
   const packed=count>1, hasPopoya=pack.some(item=>item.p.role==='E');
   const spacing=packed?(hasPopoya?44:30):0;
   const radius=p.role==='E'?(packed?Math.min(20,Math.round(popoyaSize*.34)):popoyaSize/2):(packed?17:24);
-  const border=p.role==='E'?(packed?4:6):(packed?3.5:5), fontSize=packed?16:22;
+  const border=p.role==='E'?(packed?2.8:3.2):(packed?3.5:5), fontSize=packed?16:22;
   const dx=packed?(i%colCount-(colCount-1)/2)*spacing:0;
   const dy=packed?(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*spacing:0;
   const canSelect=state.viewerColor===p.color&&state.turn===p.color&&state.roundPhase==='choose'&&state.options.length>1&&state.options.includes(id)&&!animPiece;
@@ -1128,7 +1128,7 @@ function drawPieces(){
   if(p.role==='E'){
    // Only the SOLID-COLORED ROUND BASE receives the dark stroke.
    // Popoya's original PNG and its pre-existing white outline are untouched.
-   const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed?4:5);
+   const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed?3.5:4);
    svg('circle',{r:discRadius,fill:COLOR[p.color].hex,stroke:'#111111','stroke-width':rim},group);
    svg('image',{href:POPOYA_PNG,x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
   }else{
