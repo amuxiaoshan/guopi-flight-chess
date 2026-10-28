@@ -301,7 +301,7 @@ function legalMove(r,p,pieceId){
 }
 function publicState(room,viewer){
   const me=room.players.find(p=>p.token===viewer);
-  return {code:room.code,phase:room.phase,roundPhase:room.roundPhase,host:room.host===viewer,
+  return {code:room.code,phase:room.phase,roundPhase:room.roundPhase,host:room.host===viewer,hostAwayUntil:room.hostAwaySince?room.hostAwaySince+HOST_TRANSFER_DELAY_MS:null,
     viewerColor:me?me.color:null,viewerName:me?me.name:null,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
     players:room.players.map(p=>({color:p.color,role:p.role,name:p.name,kind:p.kind,pieces:p.pieces,finished:p.finished,auto:!!p.auto,connected:p.kind==='ai'||p.connections>0})),
     finishOrder:room.finishOrder,vote:room.vote?{id:room.vote.id,agreed:room.players.filter(p=>p.kind==='human'&&!p.auto&&room.vote.responses[p.color]===true).length,required:room.players.filter(p=>p.kind==='human'&&!p.auto).length,myVote:me&&Object.hasOwn(room.vote.responses,me.color)?room.vote.responses[me.color]:null}:null,voteHandled:!!room.voteHandled,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
@@ -309,6 +309,35 @@ function publicState(room,viewer){
 }
 function sendOne(){}
 function publish(room){room.seq++;if(rooms.get(room.code)===room){const snapshot=publicState(room,localToken);queueMicrotask(()=>{if(rooms.get(room.code)===room)listener?.(snapshot);});}}
+// The offline simulator has no live SSE connections. Non-automated seats are present.
+const HOST_TRANSFER_DELAY_MS=180000;
+function cancelHostTransfer(room){
+ if(room.hostTransferTimer)clearTimeout(room.hostTransferTimer);
+ room.hostTransferTimer=null;room.hostAwaySince=null;room.hostAwayToken=null;
+}
+function eligibleHostSuccessor(room){
+ return room.players.filter(p=>p.kind==='human'&&p.token!==room.host&&!p.auto)
+  .sort((a,b)=>(a.joinOrder??Number.MAX_SAFE_INTEGER)-(b.joinOrder??Number.MAX_SAFE_INTEGER))[0];
+}
+function attemptHostTransfer(room){
+ if(rooms.get(room.code)!==room||room.phase==='closed'||!room.hostAwaySince||room.hostAwayToken!==room.host)return;
+ const old=room.players.find(p=>p.kind==='human'&&p.token===room.host);
+ if(old&&!old.auto){cancelHostTransfer(room);return;}
+ const remaining=room.hostAwaySince+HOST_TRANSFER_DELAY_MS-Date.now();
+ if(remaining>0){room.hostTransferTimer=setTimeout(()=>attemptHostTransfer(room),remaining);return;}
+ const next=eligibleHostSuccessor(room);
+ if(!next){room.hostTransferTimer=null;return;}
+ const former=old?.name||'原房主';
+ room.host=next.token;cancelHostTransfer(room);
+ room.note=`${former} 离开超过三分钟，房主已按入房顺序移交给 ${next.name}`;
+ publish(room);
+}
+function markHostAway(room,p){
+ if(room.mode==='solo'||room.host!==p.token||room.phase==='closed'||room.hostAwayToken===p.token)return;
+ cancelHostTransfer(room);
+ room.hostAwayToken=p.token;room.hostAwaySince=Date.now();
+ room.hostTransferTimer=setTimeout(()=>attemptHostTransfer(room),HOST_TRANSFER_DELAY_MS);
+}
 // Close solo or offline matches instead of allowing computers to play forever.
 function closeIfOnlyComputers(room){
   if(room.phase!=='playing'||room.players.some(p=>p.kind==='human'&&!p.auto))return false;
@@ -345,6 +374,7 @@ function settleMatch(room,reason='本局结束'){
 function handOverToComputer(room,p){
  p.auto=true;p.autoReason='left';
  if(closeIfOnlyComputers(room))return {ok:true,closed:true};
+ markHostAway(room,p);
  
  room.note=`${p.name} 已退出，由电脑暂时操作`;
  publish(room);
@@ -471,8 +501,8 @@ function runAI(room){
 function createRoom(name,mode='online'){
   if(rooms.size>=ROOM_LIMIT)fail('试玩服务器的房间数量已满');
   let code;do{code=roomCode();}while(rooms.has(code));
-  const t=token(); const host={token:t,name:cleanName(name||'房主'),color:3,role:'?',kind:'human',pieces:Array(4).fill(-1),finished:false,connections:0};
-  const r={code,host:t,vote:null,voteHandled:false,mode:mode==='solo'?'solo':'online',bots:[{color:0,role:'?'}],botCount:1,players:[host],phase:'lobby',roundPhase:'lobby',turn:0,die:null,options:[],finishOrder:[],sixStreak:0,seq:0,lastRoll:null,lastMove:null,note:'等待其他玩家加入',clients:new Set(),lastActivity:Date.now()};rooms.set(code,r);
+  const t=token(); const host={token:t,name:cleanName(name||'房主'),color:3,role:'?',kind:'human',pieces:Array(4).fill(-1),finished:false,connections:0,joinOrder:0};
+  const r={code,host:t,nextJoinOrder:1,hostAwaySince:null,hostAwayToken:null,hostTransferTimer:null,vote:null,voteHandled:false,mode:mode==='solo'?'solo':'online',bots:[{color:0,role:'?'}],botCount:1,players:[host],phase:'lobby',roundPhase:'lobby',turn:0,die:null,options:[],finishOrder:[],sixStreak:0,seq:0,lastRoll:null,lastMove:null,note:'等待其他玩家加入',clients:new Set(),lastActivity:Date.now()};rooms.set(code,r);
   return {code,token:t};
 }
 function handleAction(data){
@@ -483,13 +513,15 @@ function handleAction(data){
     if(r.mode==='solo')fail('单人对局不支持加入');
     if(r.players.filter(p=>p.kind==='human').length>=4)fail('房间已满');
     const assigned=colors.map((_,i)=>i).find(c=>!r.players.some(p=>p.color===c&&p.kind==='human'));
-    const t=token();r.players.push({token:t,name:cleanName(data.name||`玩家${r.players.length+1}`),color:assigned,role:'?',kind:'human',pieces:Array(4).fill(-1),finished:false,connections:0});
+    const t=token();r.players.push({token:t,name:cleanName(data.name||`玩家${r.players.length+1}`),color:assigned,role:'?',kind:'human',pieces:Array(4).fill(-1),finished:false,connections:0,joinOrder:r.nextJoinOrder++});
     arrangeBots(r);publish(r);
+    if(r.hostAwaySince&&Date.now()-r.hostAwaySince>=HOST_TRANSFER_DELAY_MS)attemptHostTransfer(r);
     return {code:r.code,token:t};
   }
   if(type==='resume'){
     const r=findRoom(data.code),p=auth(r,data.token);
     p.auto=false;p.autoReason=null;
+    if(r.host===p.token)cancelHostTransfer(r);
     r.note=`${p.name} 已重新接管棋子`;
     publish(r);
     if(r.roundPhase==='vote')finishVoteIfReady(r);
@@ -542,18 +574,18 @@ function handleAction(data){
     if(r.phase==='playing'){
       return handOverToComputer(r,p);
     }
-    if(r.phase!=='lobby')fail('本局已经结束');
-    r.players=r.players.filter(x=>x!==p);
-    if(r.host===data.token){
-      const newHost=r.players.find(x=>x.kind==='human');
-      if(newHost)r.host=newHost.token;
+    if(r.host===p.token&&r.mode==='online'&&(r.phase==='lobby'||r.phase==='over')){
+      p.auto=true;p.autoReason='left';
+      markHostAway(r,p);
+      r.note=`${p.name} 暂时离开，三分钟内可回来，逾期移交下一位玩家`;
+      publish(r);return {ok:true,auto:true};
     }
+    if(r.phase!=='lobby'&&r.phase!=='over')fail('本局已经结束');
+    r.players=r.players.filter(x=>x!==p);
     arrangeBots(r);
-    const lost=[...r.clients].filter(c=>c.token===data.token);
-    for(const conn of lost){r.clients.delete(conn);try{conn.res.end();}catch{}}
-    if(!r.players.length){rooms.delete(r.code);for(const conn of r.clients){try{conn.res.end();}catch{}}r.clients.clear();}
-    else publish(r);
-    return {ok:true};
+    if(!r.players.some(x=>x.kind==='human')){cancelHostTransfer(r);rooms.delete(r.code);return {ok:true,closed:true};}
+    r.note=`${p.name} 已退出房间`;
+    publish(r);return {ok:true};
   }
   if(type==='reset'){
     if(data.token!==r.host)fail('只有房主能重新开局');
