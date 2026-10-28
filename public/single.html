@@ -91,6 +91,7 @@ input,select{font-size:16px}
   <button id="solo" class="primary">单人游戏</button>
   <button id="create" class="secondary">创建多人房间</button>
   <div class="joinrow"><input id="joinCode" placeholder="输入六位房间码" maxlength="6" aria-label="房间码"><button id="join" class="secondary">加入房间</button></div>
+  <button id="resumeLast" type="button" class="textbutton resume-seat" hidden>返回上次的房间（接管原来的棋子）</button>
   <p id="inviteNotice" class="inviteNotice" hidden>功能维修中~</p>
   <p class="sub">单人可选 1～3 个电脑。房间模式暂时维护中。</p>
  </div>
@@ -115,18 +116,27 @@ input,select{font-size:16px}
  <div class="boardselection" id="boardSelection">本次选择<strong id="boardSelectedRole">【角色】</strong></div>
   <div class="gametext"><strong id="status">等待行动</strong><small id="detail"></small></div>
  <div class="dicearea"><button id="roll" class="dice" aria-label="点击投掷骰子"><span class="cube" id="cube"><span class="face front" data-face="1"></span><span class="face back" data-face="6"></span><span class="face right" data-face="3"></span><span class="face left" data-face="4"></span><span class="face top" data-face="5"></span><span class="face bottom" data-face="2"></span></span></button><span id="diceStatus" class="hint">等待掷骰</span></div>
- <div class="sound-test-row"><button id="soundRepairGame" class="textbutton sound-repair" type="button" title="只修复声音播放，不刷新页面">没有音效？点此刷新</button></div>
+ <div class="sound-test-row"><button id="settleNow" type="button" class="textbutton settle-now" hidden>提前结束并结算</button><button id="soundRepairGame" class="textbutton sound-repair" type="button" title="只修复声音播放，不刷新页面">没有音效？点此刷新</button></div>
  <div class="bottomgame sub">轮到自己时掷骰 · 可选的棋子会显示光圈和小三角</div>
 </section>
 <section id="result" class="screen result">
  <h2>游戏结束</h2>
  <div class="art-placeholder" aria-label="结算插图预留位置"><span>插图预留区</span></div>
  <div class="rank">本次排名：<strong id="rank">第 1 名</strong></div>
+ <div id="rankDetail" class="rank-detail" aria-live="polite"></div>
  <p id="resultNote" class="result-note" hidden>等待房主再次开始游戏</p>
  <div class="bottom"><button id="restart" class="primary">再次游戏</button><button id="resultHome" class="secondary">返回主页</button></div>
 </section>
 <div class="toast" id="toast" role="status"></div>
 </main>
+<div id="continuePrompt" class="continue-prompt" role="dialog" aria-modal="true" aria-labelledby="continueTitle" aria-hidden="true">
+ <div class="continue-card">
+  <h3 id="continueTitle">第一名已产生！</h3>
+  <p id="continueText">是否继续观看剩余比赛？只有全体真人玩家都同意，比赛才会继续。</p>
+  <p id="continueProgress" class="sub"></p>
+  <div class="continue-actions"><button type="button" class="primary" id="continueYes">同意继续</button><button type="button" class="secondary" id="continueNo">结束并结算</button></div>
+ </div>
+</div>
 <div class="shade" id="dialog"><div class="dialog"><h3 id="dlgTitle">提示</h3><div id="dlgText"></div><div class="dialogActions"><button id="dlgClose" class="secondary">取消</button><button id="dlgConfirm" class="primary">确定</button></div></div></div>
 <script>
 (function(){
