@@ -521,7 +521,7 @@ function prepareGoalAudio(){
 function playGoalChime(){
  const audio=prepareGoalAudio();if(!audio||!goalSoundEnabled)return;
  const now=audio.currentTime+0.012;
- for(const [pitch,delay,duration,volume] of [[987.77,0,0.105,0.040],[1318.51,0.090,0.185,0.036]]){
+ for(const [pitch,delay,duration,volume] of [[987.77,0,0.110,0.095],[1318.51,0.095,0.185,0.090]]){
   const oscillator=audio.createOscillator(),envelope=audio.createGain(),t=now+delay;
   oscillator.type='square';oscillator.frequency.setValueAtTime(pitch,t);
   envelope.gain.setValueAtTime(0.0001,t);
@@ -531,21 +531,40 @@ function playGoalChime(){
   oscillator.start(t);oscillator.stop(t+duration+0.012);
  }
 }
-// A soft 55 ms plop per actual piece landing, kept separate from the goal chime.
+// A crisp 65 ms pop per actual piece landing, kept separate from the goal chime.
 function playStepPop(){
  const audio=prepareGoalAudio();if(!audio||!goalSoundEnabled)return;
  try{
   const t=audio.currentTime+0.004;
   const oscillator=audio.createOscillator(),envelope=audio.createGain();
   oscillator.type='triangle';
-  oscillator.frequency.setValueAtTime(740,t);
-  oscillator.frequency.exponentialRampToValueAtTime(490,t+0.048);
+  oscillator.frequency.setValueAtTime(950,t);
+  oscillator.frequency.exponentialRampToValueAtTime(590,t+0.055);
   envelope.gain.setValueAtTime(0.0001,t);
-  envelope.gain.exponentialRampToValueAtTime(0.028,t+0.003);
-  envelope.gain.exponentialRampToValueAtTime(0.0001,t+0.055);
+  envelope.gain.exponentialRampToValueAtTime(0.125,t+0.003);
+  envelope.gain.exponentialRampToValueAtTime(0.0001,t+0.065);
   oscillator.connect(envelope);envelope.connect(audio.destination);
-  oscillator.start(t);oscillator.stop(t+0.060);
+  oscillator.start(t);oscillator.stop(t+0.070);
  }catch{}
+}
+async function previewSound(){
+ if(!goalSoundEnabled){
+  goalSoundEnabled=true;
+  try{localStorage.setItem(SOUND_PREF,'on');}catch{}
+  refreshSoundToggle();
+ }
+ const audio=prepareGoalAudio();
+ if(!audio){toast('当前浏览器不支持播放游戏音效');return;}
+ try{if(audio.state==='suspended')await audio.resume();}catch{}
+ if(audio.state!=='running'){
+  toast('声音未能启动，请检查浏览器是否允许网站播放声音');
+  return;
+ }
+ // Sound preview is initiated by a real click. No need to roll a six to test it.
+ playStepPop();
+ setTimeout(()=>playStepPop(),175);
+ setTimeout(()=>playStepPop(),350);
+ setTimeout(()=>playGoalChime(),610);
 }
 function refreshSoundToggle(){
  const button=$('soundToggle');if(!button)return;
@@ -562,6 +581,10 @@ $('soundToggle').onclick=()=>{
 document.addEventListener('pointerdown',prepareGoalAudio,{passive:true});
 document.addEventListener('keydown',prepareGoalAudio);
 refreshSoundToggle();
+for(const id of ['soundTestHome','soundTestGame']){
+ const testButton=$(id);
+ if(testButton)testButton.onclick=previewSound;
+}
 
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 function screen(id){document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('active',el.id===id));}
