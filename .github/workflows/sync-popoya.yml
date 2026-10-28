@@ -1,0 +1,28 @@
+name: Sync Popoya chess piece artwork
+
+on:
+  push:
+    paths:
+      - 'public/assets/popoya-original.png'
+      - 'scripts/sync-popoya.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  synchronize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regenerate references and offline embedded PNG
+        run: python3 scripts/sync-popoya.py
+      - name: Commit generated updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js public/piece-preview.html public/single.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync Popoya piece artwork in online and offline games"
+            git push
+          fi
