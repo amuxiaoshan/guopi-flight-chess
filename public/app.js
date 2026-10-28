@@ -318,8 +318,9 @@ function showRankDetails(){
  $('rankDetail').innerHTML=order.map((color,index)=>{
   const p=state.players.find(x=>x.color===color);if(!p)return '';
   const goals=p.pieces.filter(v=>v===GOAL).length;
-  const distance=p.pieces.reduce((n,x)=>n+(x===GOAL?0:x===-1?57:x===-2?56:GOAL-x),0);
-  return `<div class="rank-line"><strong>第 ${index+1} 名 · ${escapeHTML(roleName(p.role))}</strong><small>${goals}/4 到终点 · 剩余 ${distance} 格</small></div>`;
+  const distances=p.pieces.filter(x=>x!==GOAL).map(x=>x===-1?57:x===-2?56:GOAL-x);
+  const distance=distances.length?Math.min(...distances):0;
+  return `<div class="rank-line"><strong>第 ${index+1} 名 · ${escapeHTML(roleName(p.role))}</strong><small>${goals}/4 到终点 · 最近距终点 ${distance} 格</small></div>`;
  }).join('');
 }
 
@@ -495,6 +496,7 @@ function renderGame(){
    };
  });
  $('gameHint').textContent=state.host&&state.mode==='online'&&state.players.filter(p=>p.kind==='human').length>1?'房主可点击其他玩家的头像移交房主 · 轮到自己时掷骰':'轮到自己时掷骰 · 可选的棋子会显示光圈和小三角';
+ if(self?.finished&&state.voteHandled&&state.roundPhase!=='vote')$('gameHint').textContent='你已完成全部棋子，当前正在观战。';
  const turnPlayer=state.players.find(p=>p.color===state.turn);
  const mine=state.viewerColor===state.turn;
  const phases={roll:mine?'点击骰子':'等待掷骰',choose:state.options?.length>1?(mine?'点击发光的棋子':'正在选择棋子'):'唯一可动棋子自动前进',moving:'正在移动棋子',rolling:'正在掷骰子'};
