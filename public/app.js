@@ -112,6 +112,42 @@ async function previewSound(){
  setTimeout(()=>playStepPop(),350);
  setTimeout(()=>playGoalChime(),610);
 }
+// A sound-only hot refresh. Never reload the page or touch the room/game state.
+let soundRefreshSerial=0;
+function refreshSoundEngine(){
+ const Context=window.AudioContext||window.webkitAudioContext;
+ if(!Context){toast('当前浏览器不支持游戏音效');return;}
+ let fresh;
+ try{fresh=new Context();}catch{
+  toast('无法重新启动音效，请检查浏览器的声音权限');return;
+ }
+ const old=goalAudio;
+ goalAudio=fresh;
+ const serial=++soundRefreshSerial;
+ if(!goalSoundEnabled){
+  goalSoundEnabled=true;
+  try{localStorage.setItem(SOUND_PREF,'on');}catch{}
+  refreshSoundToggle();
+ }
+ // Retire the old audio engine asynchronously; game turns and animations keep running.
+ if(old&&old!==fresh&&old.state!=='closed'){
+  try{Promise.resolve(old.close()).catch(()=>{});}catch{}
+ }
+ let started;
+ try{started=fresh.state==='suspended'?fresh.resume():Promise.resolve();}
+ catch(e){started=Promise.reject(e);}
+ Promise.resolve(started).then(()=>{
+  if(serial!==soundRefreshSerial||goalAudio!==fresh)return;
+  if(fresh.state!=='running'){
+   toast('音效未能启动，请检查设备音量与浏览器声音设置');return;
+  }
+  playStepPop(); // short audible confirmation, no interruption of the active turn
+  toast('音效已刷新，当前棋局不会重置');
+ }).catch(()=>{
+  if(serial===soundRefreshSerial&&goalAudio===fresh)
+   toast('音效启动失败，请检查浏览器的声音权限');
+ });
+}
 function refreshSoundToggle(){
  const button=$('soundToggle');if(!button)return;
  button.textContent=goalSoundEnabled?'音效：开':'音效：关';
@@ -131,6 +167,11 @@ for(const id of ['soundTestHome','soundTestGame']){
  const testButton=$(id);
  if(testButton)testButton.onclick=previewSound;
 }
+for(const id of ['soundRepairHome','soundRepairGame']){
+ const repairButton=$(id);
+ if(repairButton)repairButton.onclick=refreshSoundEngine;
+}
+
 
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 function screen(id){document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('active',el.id===id));}
