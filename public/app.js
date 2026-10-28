@@ -211,7 +211,7 @@ async function action(payload){
  }catch(e){toast(e.message);return null;}
 }
 function resetConnection(){cancelDiceSpin();stopDiceShake();if(events){events.close();events=null;}animationSerial++;rollSerial++;state=null;lastSequence=-1;lastMoveSeq=-1;lastRollSeq=-1;animPiece=null;}
-function home(){resetConnection();code='';authToken='';myRoomMode='';pendingExit=false;screen('welcome');history.replaceState(null,'',location.pathname);}
+function home(){resetConnection();code='';authToken='';myRoomMode='';pendingExit=false;screen('welcome');history.replaceState(null,'',location.pathname);refreshReturnSeat();}
 function connect(){
  resetConnection();
  events=new EventSource(`/api/events?code=${encodeURIComponent(code)}&token=${encodeURIComponent(authToken)}`);
@@ -230,7 +230,7 @@ function connect(){
  };
 }
 async function enter(mode){const result=await action({type:'create',name:$('nickname').value,mode});if(!result)return;code=result.code;authToken=result.token;myRoomMode=mode;sessionStorage.setItem('flight_room',JSON.stringify({code,authToken}));connect();if(result.state)receive(result.state);}
-async function join(){const c=$('joinCode').value.toUpperCase().trim();if(c.length!==6){toast('请输入六位房间码');return;}const result=await actionWithCode({type:'join',code:c,name:$('nickname').value});if(!result)return;code=result.code;authToken=result.token;myRoomMode='online';sessionStorage.setItem('flight_room',JSON.stringify({code,authToken}));connect();if(result.state)receive(result.state);}
+async function join(){const c=$('joinCode').value.toUpperCase().trim();if(savedReturnSeat()?.code===c){await resumeSavedSeat();return;}if(c.length!==6){toast('请输入六位房间码');return;}const result=await actionWithCode({type:'join',code:c,name:$('nickname').value});if(!result)return;code=result.code;authToken=result.token;myRoomMode='online';sessionStorage.setItem('flight_room',JSON.stringify({code,authToken}));connect();if(result.state)receive(result.state);}
 async function prepareLanAddresses(){
  if(lanFetched)return;
  lanFetched=true;
@@ -265,6 +265,64 @@ async function actionWithCode(payload){try{const r=await fetch('/api/action',{me
 $('solo').onclick=()=>enter('solo');$('create').onclick=()=>enter('online');$('join').onclick=join;
 $('joinCode').oninput=e=>{e.target.value=e.target.value.replace(/[^a-z0-9]/ig,'').toUpperCase();};
 function me(){return state?.players.find(p=>p.kind==='human'&&p.color===state.viewerColor);}
+
+const RETURN_SEAT_KEY='flight_return_seat';
+let voteFadeTimer=null;
+function savedReturnSeat(){
+ try{const x=JSON.parse(localStorage.getItem(RETURN_SEAT_KEY)||'null');return x?.code&&x?.authToken?x:null;}catch{return null;}
+}
+function refreshReturnSeat(){
+ const seat=savedReturnSeat(),b=$('resumeLast');
+ if(b)b.hidden=!seat;
+ if(seat&&(!$('joinCode').value||$('joinCode').value===seat.code))$('joinCode').value=seat.code;
+}
+async function resumeSavedSeat(){
+ const saved=savedReturnSeat();
+ if(!saved){toast('没有可恢复的座位');return;}
+ const result=await actionWithCode({type:'resume',code:saved.code,token:saved.authToken});
+ if(!result){toast('原房间可能已经结束，无法接管旧座位');return;}
+ code=saved.code;authToken=saved.authToken;myRoomMode='online';
+ try{localStorage.removeItem(RETURN_SEAT_KEY);}catch{}
+ sessionStorage.setItem('flight_room',JSON.stringify({code,authToken}));
+ connect();
+ if(result.state)receive(result.state);
+}
+$('resumeLast').onclick=resumeSavedSeat;
+function syncVotePrompt(){
+ const el=$('continuePrompt');
+ const v=state?.phase==='playing'&&state.roundPhase==='vote'?state.vote:null;
+ if(!v){
+  if(voteFadeTimer){clearTimeout(voteFadeTimer);voteFadeTimer=null;}
+  el.classList.remove('open');el.setAttribute('aria-hidden','true');return;
+ }
+ const winner=state.players.find(p=>p.color===state.finishOrder[0]);
+ $('continueTitle').textContent=`第一名：${winner?winner.role==='?'?winner.name:roleName(winner.role):'已产生'}`;
+ $('continueText').textContent='是否继续观看剩余比赛？只有所有在场的真人玩家都同意才会继续。已完成的玩家转为观战，电脑不需要投票。';
+ $('continueProgress').textContent=`已同意 ${v.agreed}/${v.required} 人 · 超时将自动结算`;
+ $('continueYes').disabled=v.myVote===true;
+ $('continueNo').disabled=v.myVote===false;
+ if(!el.classList.contains('open')&&!voteFadeTimer){
+  voteFadeTimer=setTimeout(()=>{
+   voteFadeTimer=null;
+   if(state?.phase==='playing'&&state.roundPhase==='vote'){
+    el.setAttribute('aria-hidden','false');el.classList.add('open');
+   }
+  },680);
+ }
+}
+$('continueYes').onclick=()=>action({type:'vote',agree:true});
+$('continueNo').onclick=()=>action({type:'vote',agree:false});
+$('settleNow').onclick=()=>dialog('提前结算比赛？','将按已到终点的棋子数量、再按剩余总距离排列名次。这个操作会结束所有人的当前比赛。',()=>action({type:'end-early'}));
+function showRankDetails(){
+ const order=state?.finishOrder||[];
+ $('rankDetail').innerHTML=order.map((color,index)=>{
+  const p=state.players.find(x=>x.color===color);if(!p)return '';
+  const goals=p.pieces.filter(v=>v===GOAL).length;
+  const distance=p.pieces.reduce((n,x)=>n+(x===GOAL?0:x===-1?57:x===-2?56:GOAL-x),0);
+  return `<div class="rank-line"><strong>第 ${index+1} 名 · ${escapeHTML(roleName(p.role))}</strong><small>${goals}/4 到终点 · 剩余 ${distance} 格</small></div>`;
+ }).join('');
+}
+
 function receive(next){
  if(next.seq<=lastSequence)return;
  if(next.phase==='closed'){
@@ -277,10 +335,10 @@ function receive(next){
  const first=lastSequence<0;
  state=next;lastSequence=next.seq;
  if(first){roleIndex=Math.max(0,ROLE.indexOf(me()?.role??'?'));}
- if(next.phase==='lobby'){screen('lobby');renderLobby();prepareLanAddresses();return;}
- if(next.phase==='playing'){screen('game');renderGame();}
+ if(next.phase==='lobby'){syncVotePrompt();screen('lobby');renderLobby();prepareLanAddresses();return;}
+ if(next.phase==='playing'){screen('game');renderGame();syncVotePrompt();}
  if(next.phase==='over'){
-   screen('result'); const rank=next.finishOrder.indexOf(next.viewerColor)+1;
+   syncVotePrompt();screen('result');showRankDetails(); const rank=next.finishOrder.indexOf(next.viewerColor)+1;
    $('rank').textContent=rank?`第 ${rank} 名`:'—';
    $('restart').textContent='再次游戏';
    $('restart').disabled=!next.host;
@@ -357,18 +415,19 @@ async function leaveRoom(){
  pendingExit=true;
  const result=await action({type:'leave'});
  if(!result){pendingExit=false;return;}
+ if(result.auto){try{localStorage.setItem(RETURN_SEAT_KEY,JSON.stringify({code,authToken}));}catch{}}
  sessionStorage.removeItem('flight_room');
  home();
 }
 function isSoloMode(){return state?.mode==='solo'||myRoomMode==='solo';}
 function exitSetup(){
- if(isSoloMode()){leaveRoom();return;}
- if(state?.host){
-   dialog('房主退出房间？','你是房主，离开后整个房间会解散，所有玩家都会返回主页。想保留房间，请先在对局中点击其他真人玩家的头像移交房主。',leaveRoom);
- }else{
-   const humans=state?.players.filter(p=>p.kind==='human').length||0;
-   dialog('退出房间？',humans<=2?'退出后房间只剩一位真人玩家，所有人将自动返回主页。':'你会离开本局，其余玩家可以继续游戏。',leaveRoom);
+ if(state?.phase==='playing'){
+  dialog('交给电脑暂时操作？','退出后电脑会接管你的棋子。之后从首页点击「返回上次的房间」即可恢复原座位，不会丢失进度。',leaveRoom);
+  return;
  }
+ if(isSoloMode()){leaveRoom();return;}
+ if(state?.host)dialog('退出准备房间？','离开准备房间会解散房间。',leaveRoom);
+ else dialog('退出准备房间？','确定退出房间并释放座位？',leaveRoom);
 }
 $('leave').onclick=exitSetup;
 $('exitLobby').onclick=exitSetup;
@@ -426,7 +485,7 @@ function renderGame(){
   ? `<button type="button" class="tiny host-transfer-avatar" style="--color:${COLOR[p.color].hex}" data-transfer-color="${p.color}" aria-label="移交房主给${escapeHTML(p.name)}" title="点击头像移交房主">${escapeHTML(roleMark(p.role))}</button>`
   : `<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div>`;
  const hostMark=p.kind==='human'&&p.color===state.hostColor?'<span class="host-tag">房主</span>':'';
- return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}">${avatar}<div title="${escapeHTML(roleName(p.role))}" class="seatname seatrole">${escapeHTML(roleName(p.role))}</div><small title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</small><small>${count}/4 已到终点</small>${hostMark}</div>`;
+ return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}">${avatar}<div title="${escapeHTML(roleName(p.role))}" class="seatname seatrole">${escapeHTML(roleName(p.role))}</div><small title="${escapeHTML(p.name)}">${p.kind==='ai'?'电脑':p.auto?'电脑托管':escapeHTML(p.name)}</small><small>${count}/4 已到终点</small>${hostMark}</div>`;
  }).join('');
  $('playerStrip').querySelectorAll('[data-transfer-color]').forEach(button=>{
    button.onclick=()=>{
@@ -441,9 +500,10 @@ function renderGame(){
  const phases={roll:mine?'点击骰子':'等待掷骰',choose:state.options?.length>1?(mine?'点击发光的棋子':'正在选择棋子'):'唯一可动棋子自动前进',moving:'正在移动棋子',rolling:'正在掷骰子'};
  $('status').textContent=state.note||`${turnPlayer?.name||'玩家'} 的回合`;
  $('detail').textContent=state.roundPhase==='choose'&&state.die?`骰子 ${state.die} 点 · ${phases.choose}`:(phases[state.roundPhase]||'');
- $('roll').disabled=!(mine&&state.roundPhase==='roll');
+ $('roll').disabled=!(mine&&!self?.auto&&state.roundPhase==='roll');
+ $('settleNow').hidden=state.phase!=='playing';
 
- $('diceStatus').textContent=mine&&state.roundPhase==='roll'?'点击投掷骰子':turnPlayer?.kind==='ai'?'电脑操作中':`${turnPlayer?.name||'对方'} 的回合`;
+ $('diceStatus').textContent=mine&&state.roundPhase==='roll'?'点击投掷骰子':turnPlayer&&(turnPlayer.kind==='ai'||turnPlayer.auto)?roleName(turnPlayer.role):`${turnPlayer?.name||'对方'} 的回合`;
  drawPieces();
 }
 $('roll').onclick=()=>action({type:'roll'});
@@ -526,5 +586,6 @@ async function animateMove(move){$('bubble').style.display='none';const mine=++a
 function rules(){dialog('游戏说明','每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。');}
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
 initDice();placeCube(1);
+refreshReturnSeat();
 const incoming=new URLSearchParams(location.search).get('room');if(incoming){$('joinCode').value=incoming.toUpperCase();$('inviteNotice').hidden=false;$('nickname').focus();}
 try{const saved=JSON.parse(sessionStorage.getItem('flight_room')||'null');if(saved?.code&&saved?.authToken&&(!incoming||incoming.toUpperCase()===saved.code)){code=saved.code;authToken=saved.authToken;connect();}}catch{}
