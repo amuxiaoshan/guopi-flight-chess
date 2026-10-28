@@ -236,7 +236,7 @@ $('soundToggle').onclick=()=>{
  try{localStorage.setItem(SOUND_PREF,goalSoundEnabled?'on':'off');}catch{}
  refreshSoundToggle();
  if(!goalSoundEnabled)stopDiceShake();
- playToggleClick(); // A short retro click for either toggle state.
+ if(goalSoundEnabled)playToggleClick(); // Only confirm when turning sound on.
 };
 document.addEventListener('pointerdown',prepareGoalAudio,{passive:true});
 document.addEventListener('keydown',prepareGoalAudio);
