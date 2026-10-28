@@ -77,11 +77,27 @@ function playGoalChime(){
   oscillator.start(t);oscillator.stop(t+duration+0.012);
  }
 }
+// A soft 55 ms plop per actual piece landing, kept separate from the goal chime.
+function playStepPop(){
+ const audio=prepareGoalAudio();if(!audio||!goalSoundEnabled)return;
+ try{
+  const t=audio.currentTime+0.004;
+  const oscillator=audio.createOscillator(),envelope=audio.createGain();
+  oscillator.type='triangle';
+  oscillator.frequency.setValueAtTime(740,t);
+  oscillator.frequency.exponentialRampToValueAtTime(490,t+0.048);
+  envelope.gain.setValueAtTime(0.0001,t);
+  envelope.gain.exponentialRampToValueAtTime(0.028,t+0.003);
+  envelope.gain.exponentialRampToValueAtTime(0.0001,t+0.055);
+  oscillator.connect(envelope);envelope.connect(audio.destination);
+  oscillator.start(t);oscillator.stop(t+0.060);
+ }catch{}
+}
 function refreshSoundToggle(){
  const button=$('soundToggle');if(!button)return;
  button.textContent=goalSoundEnabled?'音效：开':'音效：关';
  button.setAttribute('aria-pressed',String(goalSoundEnabled));
- button.title=goalSoundEnabled?'关闭终点音效':'开启终点音效';
+ button.title=goalSoundEnabled?'关闭游戏音效':'开启游戏音效';
 }
 $('soundToggle').onclick=()=>{
  goalSoundEnabled=!goalSoundEnabled;
@@ -361,6 +377,7 @@ async function animateMove(move){$('bubble').style.display='none';const mine=++a
   if(mine!==animationSerial)return;
   animPiece.pos=step.pos;drawPieces();
   if(k===move.path.length-1&&step.pos===GOAL)playGoalChime();
+   else playStepPop();
  }
  await sleep(100);if(mine!==animationSerial)return;animPiece=null;drawPieces();
  if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
