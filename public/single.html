@@ -556,6 +556,23 @@ function playStepPop(){
   oscillator.start(t);oscillator.stop(t+0.070);
  }catch{}
 }
+// Tiny tabletop dice rattle, ending with a deeper landing click. No external audio assets.
+function playDiceTap(landing=false){
+ const audio=prepareGoalAudio();if(!audio||!goalSoundEnabled)return;
+ try{
+  const t=audio.currentTime+0.004;
+  const oscillator=audio.createOscillator(),envelope=audio.createGain();
+  const duration=landing?0.105:0.050;
+  oscillator.type='triangle';
+  oscillator.frequency.setValueAtTime(landing?410:690,t);
+  oscillator.frequency.exponentialRampToValueAtTime(landing?230:430,t+duration*0.85);
+  envelope.gain.setValueAtTime(0.0001,t);
+  envelope.gain.exponentialRampToValueAtTime(landing?0.115:0.082,t+0.004);
+  envelope.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+  oscillator.connect(envelope);envelope.connect(audio.destination);
+  oscillator.start(t);oscillator.stop(t+duration+0.008);
+ }catch{}
+}
 function refreshSoundEngine(){
  const Context=window.AudioContext||window.webkitAudioContext;
  if(!Context){toast('当前浏览器不支持游戏音效');return;}
@@ -811,7 +828,12 @@ function initDice(){document.querySelectorAll('.face').forEach(face=>{
 });}
 function placeCube(n){const [x,y]=ORIENT[n]||ORIENT[1];$('cube').style.transition='none';$('cube').style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;$('roll').setAttribute('aria-label',`骰子：${n} 点`);}
 async function animateRoll(n){const own=++rollSerial;const cube=$('cube');const [x,y]=ORIENT[n];const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- if(reduced){placeCube(n);return;}
+ if(reduced){playDiceTap(true);placeCube(n);return;}
+ // One light click per tumble and a distinct landing tap, matching the 640 ms spin.
+ playDiceTap();
+ for(const ms of [90,190,310,440,570]){
+  setTimeout(()=>{if(own===rollSerial)playDiceTap(ms===570);},ms);
+ }
  cube.style.transition='transform .64s cubic-bezier(.18,.65,.2,1)';cube.style.transform=`rotateX(${720+x}deg) rotateY(${1080+y}deg)`;
  await sleep(660);if(own!==rollSerial)return;
  cube.style.transition='none';cube.style.transform=`rotateX(${x}deg) rotateY(${y}deg)`;$('roll').setAttribute('aria-label',`骰子：${n} 点`);
