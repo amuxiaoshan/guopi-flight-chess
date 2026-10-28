@@ -904,8 +904,8 @@ async function animateRoll(n){
  }
  $('roll').classList.add('pivoting');
  const tip='100% 100% 31px';
- // Anchor the tilted rotation's visual center to the normal displayed die; retain instant cuts.
- const spin=deg=>`translate3d(-31px,23px,0px) rotateY(${deg}deg) rotate3d(-1,0,1,54.7356deg) scale3d(.93,.93,.93)`;
+ // Slightly flatten/shrink only the spinning pose, while centering it in the normal dice slot.
+ const spin=deg=>`translate3d(-31px,15px,0px) rotateY(${deg}deg) rotate3d(-1,0,1,54.7356deg) scale3d(.86,.82,.86)`;
  const duration=2560; // Same duration as the trimmed recorded shake and throw.
  cube.style.transition='none';
  cube.style.transformOrigin=tip;
