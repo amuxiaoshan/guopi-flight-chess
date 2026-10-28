@@ -342,6 +342,17 @@ function settleMatch(room,reason='本局结束'){
  room.vote=null;room.phase='over';room.roundPhase='over';room.note=reason;
  publish(room);
 }
+function handOverToComputer(room,p){
+ p.auto=true;p.autoReason='left';
+ if(closeIfOnlyComputers(room))return {ok:true,closed:true};
+ 
+ room.note=`${p.name} 已退出，由电脑暂时操作`;
+ publish(room);
+ if(room.roundPhase==='vote')finishVoteIfReady(room);
+ else if(room.turn===p.color&&room.roundPhase==='roll')runAI(room);
+ else if(room.turn===p.color&&room.roundPhase==='choose')autoChoose(room,p);
+ return {ok:true,auto:true};
+}
 function finishVoteIfReady(room){
  if(!room.vote||room.roundPhase!=='vote')return;
  const active=room.players.filter(p=>p.kind==='human'&&!p.auto);
@@ -490,9 +501,10 @@ function handleAction(data){
     if(r.phase!=='playing'||r.roundPhase!=='vote'||!r.vote)fail('现在无需投票');
     if(p.auto)fail('托管中的玩家不需要投票');
     if(typeof data.agree!=='boolean')fail('请选择是否继续');
-    r.vote.responses[p.color]=data.agree;
-    if(!data.agree)settleMatch(r,'有玩家选择结束比赛，按当前进度结算');
-    else{publish(r);finishVoteIfReady(r);}
+    // A disagreement only removes this participant; it never ends everyone else's match.
+    if(!data.agree)return handOverToComputer(r,p);
+    r.vote.responses[p.color]=true;
+    publish(r);finishVoteIfReady(r);
     return {ok:true};
   }
   if(type==='end-early'){
@@ -528,14 +540,7 @@ function handleAction(data){
   }
   if(type==='leave'){
     if(r.phase==='playing'){
-      p.auto=true;p.autoReason='left';
-      if(closeIfOnlyComputers(r))return {ok:true,closed:true};
-      r.note=`${p.name} 已离开，由电脑暂时操作`;
-      publish(r);
-      if(r.roundPhase==='vote')finishVoteIfReady(r);
-      else if(r.turn===p.color&&r.roundPhase==='roll')runAI(r);
-      else if(r.turn===p.color&&r.roundPhase==='choose')autoChoose(r,p);
-      return {ok:true,auto:true};
+      return handOverToComputer(r,p);
     }
     if(r.phase!=='lobby')fail('本局已经结束');
     r.players=r.players.filter(x=>x!==p);
