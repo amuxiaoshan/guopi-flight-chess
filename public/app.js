@@ -93,27 +93,6 @@ function playStepPop(){
   oscillator.start(t);oscillator.stop(t+0.070);
  }catch{}
 }
-async function previewSound(){
- if(!goalSoundEnabled){
-  goalSoundEnabled=true;
-  try{localStorage.setItem(SOUND_PREF,'on');}catch{}
-  refreshSoundToggle();
- }
- const audio=prepareGoalAudio();
- if(!audio){toast('当前浏览器不支持播放游戏音效');return;}
- try{if(audio.state==='suspended')await audio.resume();}catch{}
- if(audio.state!=='running'){
-  toast('声音未能启动，请检查浏览器是否允许网站播放声音');
-  return;
- }
- // Sound preview is initiated by a real click. No need to roll a six to test it.
- playStepPop();
- setTimeout(()=>playStepPop(),175);
- setTimeout(()=>playStepPop(),350);
- setTimeout(()=>playGoalChime(),610);
-}
-// A sound-only hot refresh. Never reload the page or touch the room/game state.
-let soundRefreshSerial=0;
 function refreshSoundEngine(){
  const Context=window.AudioContext||window.webkitAudioContext;
  if(!Context){toast('当前浏览器不支持游戏音效');return;}
@@ -163,10 +142,6 @@ $('soundToggle').onclick=()=>{
 document.addEventListener('pointerdown',prepareGoalAudio,{passive:true});
 document.addEventListener('keydown',prepareGoalAudio);
 refreshSoundToggle();
-for(const id of ['soundTestHome','soundTestGame']){
- const testButton=$(id);
- if(testButton)testButton.onclick=previewSound;
-}
 for(const id of ['soundRepairHome','soundRepairGame']){
  const repairButton=$(id);
  if(repairButton)repairButton.onclick=refreshSoundEngine;
