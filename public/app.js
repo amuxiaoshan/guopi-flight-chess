@@ -542,7 +542,7 @@ function drawPieces(){
    // Popoya's original PNG and its pre-existing white outline are untouched.
    const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed?3.5:4);
    svg('circle',{r:discRadius,fill:COLOR[p.color].hex,stroke:'#111111','stroke-width':rim},group);
-   svg('image',{href:'/assets/popoya-original.png?v=20261028-new',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
+   svg('image',{href:'/assets/popoya-original.png?v=popoya-7b365e61961d',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
   }else{
    svg('circle',{r:radius,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':border},group);
    const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},group);letter.textContent=roleMark(p.role);

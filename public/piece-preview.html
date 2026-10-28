@@ -18,7 +18,7 @@ h2{font-size:14px;margin:16px 0 9px}.colors{display:grid;grid-template-columns:r
 <div class="note">黑边只描在阵营色圆形底板外圈，粗细 3.2 单位，相比棋盘线稿 2.4 单位仅略宽。波波亚 PNG 的颜色、透明度、白边完全不变；棋子默认直径 70，离线版相同。</div>
 </main>
 <script>
-const NS='http://www.w3.org/2000/svg',ASSET='/assets/popoya-original.png?v=20261028-new';
+const NS='http://www.w3.org/2000/svg',ASSET='/assets/popoya-original.png?v=popoya-7b365e61961d';
 const COLORS=[{name:'红色',hex:'#ef5350',point:[450,150]},{name:'黄色',hex:'#f6c945',point:[750,450]},{name:'绿色',hex:'#58c26a',point:[150,450]},{name:'蓝色',hex:'#41a7f5',point:[450,750]}];
 function svg(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,String(v));parent.appendChild(e);return e;}
 const KEY='guopi_popoya_piece_diameter_v3';
