@@ -487,14 +487,14 @@ async function animateRoll(n){
  $('roll').classList.add('pivoting');
  const tip='100% 100% 31px';
  // Anchor the tilted rotation's visual center to the normal displayed die; retain instant cuts.
- const spin=deg=>`translate3d(-31px,23px,0px) rotateY(${deg}deg) rotate3d(-1,0,1,54.7356deg)`;
+ const spin=deg=>`translate3d(-31px,23px,0px) rotateY(${deg}deg) rotate3d(-1,0,1,54.7356deg) scale3d(.93,.93,.93)`;
  const duration=2560; // Same duration as the trimmed recorded shake and throw.
  cube.style.transition='none';
  cube.style.transformOrigin=tip;
  cube.style.transform=spin(0); // Cut straight from the resting face to the tilted pose.
  if(typeof cube.animate==='function'){
   try{
-   const anim=cube.animate([{transform:spin(0)},{transform:spin(2160)}],{
+   const anim=cube.animate([{transform:spin(0)},{transform:spin(2880)}],{
     duration,easing:'linear',fill:'forwards'
    });
    diceSpinAnimation=anim;
@@ -504,7 +504,7 @@ async function animateRoll(n){
   // Fallback: animate only the rotation, never the entry/exit pose.
   void cube.offsetWidth;
   cube.style.transition=`transform ${duration}ms linear`;
-  cube.style.transform=spin(2160);
+  cube.style.transform=spin(2880);
   await sleep(duration);
  }
  if(own!==rollSerial)return;
