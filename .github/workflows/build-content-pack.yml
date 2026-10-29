@@ -5,6 +5,8 @@ on:
     paths:
       - 'content/**'
       - 'scripts/build-content-pack.py'
+      - 'scripts/apply-secret-role.py'
+      - 'tests/secret-role.test.js'
       - 'tests/content-pack.test.js'
       - '.github/workflows/build-content-pack.yml'
   workflow_dispatch:
@@ -40,6 +42,8 @@ jobs:
           else
             python3 scripts/build-content-pack.py
           fi
+      - name: Apply hidden human-only role in online/offline clients
+        run: python3 scripts/apply-secret-role.py
       - name: Validate game syntax
         run: |
           node --check server.js
@@ -61,15 +65,17 @@ jobs:
           node tests/goal-pass-through.test.js
           node tests/piece-palette.test.js
           node tests/content-pack.test.js
+          node tests/secret-role.test.js
       - name: Verify content pack idempotence
         run: |
           python3 scripts/build-content-pack.py
+          python3 scripts/apply-secret-role.py
           git diff --check
       - name: Commit generated files and original artwork copy
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A content public/content-pack.js public/content/assets public/app.js public/single.html public/index.html server.js
+          git add -A content public/content-pack.js public/content/assets public/app.js public/single.html public/index.html public/style.css server.js
           if ! git diff --cached --quiet; then
             git commit -m "Compile selected OC content pack for online and offline games"
             git push
