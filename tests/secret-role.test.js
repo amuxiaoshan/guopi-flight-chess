@@ -11,6 +11,7 @@ if(active!=='oc'){console.log('SKIP: alternate content pack intentionally has no
 assert.equal(pack.characters[secretId]?.name,'瓦塞');
 assert.equal(pack.characters[secretId]?.secret,true);
 assert.equal(pack.characters[secretId]?.humanOnly,true);
+assert.deepEqual(pack.characters[secretId].collision,['撞飞咯~','回家恰饭呐！','嚯！(꜆꜄꜆˙꒳˙)꜆꜄꜆']);
 assert.equal(Object.keys(pack.characters).at(-1),secretId);
 
 const serverSource=fs.readFileSync(path.join(root,'server.js'),'utf8');
