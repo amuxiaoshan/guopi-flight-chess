@@ -43,6 +43,7 @@ function drawFrom(filename,role,storedPos,animatedPos){
    point:(color,pos,id)=>[450,350+pos],
    roleMark:()=>role,
    PIECE_REST_DIAMETER:60,PIECE_MOVE_DIAMETER:85,
+   PIECE_COLORS:[{base:'#A9CFF3',edge:'#416F9C'},{base:'#F4DEA0',edge:'#896424'},{base:'#A9D8B0',edge:'#417954'},{base:'#F2A7A7',edge:'#9B4D59'}],
    // The offline HTML embeds the actual PNG; a harmless URI stub suffices here.
    POPOYA_PNG:'data:image/png;base64,iVBORw0KGgo=',
    pieceLanding:null,
