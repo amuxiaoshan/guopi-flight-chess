@@ -103,6 +103,12 @@ input,select{font-size:16px}
 .secretHint{align-self:center;width:max-content;max-width:95%;font-size:13px;line-height:1.5;margin:1px auto 9px;padding:7px 15px;border-radius:11px;color:#546880;background:#f3f7fb;border:1px solid #dce8f3;box-shadow:0 4px 16px #637a9815;animation:secretHintAppear .2s ease-out}
 .secretHint[hidden]{display:none!important}
 @keyframes secretHintAppear{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+
+/* Original OC art in role picker and room avatars; image bytes are not modified. */
+.largeToken,.tiny{overflow:hidden}
+.largeToken .role-art,.tiny .role-art{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+.largeToken{padding:3px}
+.tiny{padding:1px;background:var(--piece-base,#fff);border-color:var(--piece-edge,var(--color,#999))}
 </style></head>
 <body><main>
 <section id="welcome" class="screen active">
@@ -651,6 +657,11 @@ const ROLE=['?',...Object.keys(ROLE_INFO).filter(id=>!ROLE_INFO[id].secret)];
 const humanRoleChoices=()=>state?.secretUnlocked&&SECRET_ROLE?[...ROLE,SECRET_ROLE]:ROLE;
 const displayRole=role=>ROLE_INFO[role]?.name||'随机角色';
 const roleMark=role=>ROLE_INFO[role]?.mark||'?';
+const roleTokenMarkup=role=>{
+ const art=ROLE_INFO[role]?.pieceImage;
+ return art?`<img class="role-art" src="${escapeHTML(art)}" alt="" draggable="false">`:escapeHTML(roleMark(role));
+};
+const roleTokenStyle=color=>`--color:${COLOR[color].hex};--piece-base:${GAME_CONTENT.teams[color].base};--piece-edge:${GAME_CONTENT.teams[color].edge}`;
 const COLOR=[
  {name:GAME_CONTENT.teams[0].name,key:'blue',hex:GAME_CONTENT.teams[0].ui,start:39,base:[10,678]},
  {name:GAME_CONTENT.teams[1].name,key:'yellow',hex:GAME_CONTENT.teams[1].ui,start:26,base:[690,678]},
@@ -1011,11 +1022,12 @@ function renderLobby(){
  renderShareSettings();
  const self=me();if(!self)return;
  roleIndex=Math.max(0,humanRoleChoices().indexOf(self.role));
-  $('myToken').textContent=roleMark(self.role);
+  $('myToken').innerHTML=roleTokenMarkup(self.role);
   $('myToken').style.cursor=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?'pointer':'default';
   $('myToken').setAttribute('role','button');
   $('myToken').tabIndex=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?0:-1;
- $('myToken').style.borderColor=COLOR[self.color].hex;
+ $('myToken').style.borderColor=GAME_CONTENT.teams[self.color].edge;
+ $('myToken').style.backgroundColor=GAME_CONTENT.teams[self.color].base;
  $('myRole').textContent=self.role==='?'?'随机角色':displayRole(self.role);
  const used=state.players.filter(p=>p.kind==='human'&&p.color!==self.color).map(p=>p.color);
  $('myColors').innerHTML=ORDER.map(c=>swatchButton(c,c===self.color,used.includes(c))).join('');
@@ -1023,7 +1035,7 @@ function renderLobby(){
  const specs=[...state.players.map(p=>({...p,fromBot:false})),...state.bots.map((b,i)=>({name:`电脑 ${i+1}`,role:b.role,color:b.color,kind:'ai',fromBot:true}))];
  $('seats').replaceChildren();
  specs.sort((a,b)=>a.color-b.color).forEach(p=>{
-  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(displayRole(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}</div></div>`;
+  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="${roleTokenStyle(p.color)}">${roleTokenMarkup(p.role)}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(displayRole(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}</div></div>`;
   $('seats').appendChild(div);
  });
  $('botControl').hidden=!state.host;
@@ -1204,7 +1216,7 @@ function renderGame(){
  $('boardSelectedRole').style.setProperty('--selected-color',self?COLOR[self.color].hex:'#878b91');
  $('playerStrip').innerHTML=ORDER.map(c=>state.players.find(p=>p.color===c)).filter(Boolean).map(p=>{
  const count=p.pieces.filter(v=>v===GOAL).length;
- return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}"><div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div title="${escapeHTML(displayRole(p.role))}" class="seatname seatrole">${escapeHTML(displayRole(p.role))}</div><small title="${escapeHTML(p.name)}">${p.kind==='ai'?'电脑':p.auto?'电脑托管':escapeHTML(p.name)}</small><small>${count}/4 已到终点</small></div>`;
+ return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}"><div class="tiny" style="${roleTokenStyle(p.color)}">${roleTokenMarkup(p.role)}</div><div title="${escapeHTML(displayRole(p.role))}" class="seatname seatrole">${escapeHTML(displayRole(p.role))}</div><small title="${escapeHTML(p.name)}">${p.kind==='ai'?'电脑':p.auto?'电脑托管':escapeHTML(p.name)}</small><small>${count}/4 已到终点</small></div>`;
  }).join('');
  if(self?.finished&&state.voteHandled&&state.roundPhase!=='vote')document.querySelector('.bottomgame').textContent='你已完成全部棋子，当前正在观战。';
  const turnPlayer=state.players.find(p=>p.color===state.turn);
