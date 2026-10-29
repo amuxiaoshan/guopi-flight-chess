@@ -14,9 +14,15 @@ const read=name=>fs.readFileSync(path.join(ROOT,name),'utf8');
 for(const name of ['app.js','single.html']){
  const source=read(name);
  const match=source.match(/const PIECE_COLORS=(\[[\s\S]*?\]);/);
- assert.ok(match,name+': missing piece palette');
- const actual=vm.runInNewContext(match[1]);
- assert.deepEqual(JSON.parse(JSON.stringify(actual)),tones,name+': bad colors or team order');
+ if(match){
+  const actual=vm.runInNewContext(match[1]);
+  assert.deepEqual(JSON.parse(JSON.stringify(actual)),tones,name+': bad colors or team order');
+ }else{
+  assert.ok(source.includes('const PIECE_COLORS=GAME_CONTENT.teams.map(team=>({base:team.base,edge:team.edge}))'),name+': missing content-pack piece palette');
+  const active=require('../content/active.json').active;
+  const pack=require('../content/packs/'+active+'/pack.json');
+  assert.deepEqual(pack.teams.map(t=>({base:t.base,edge:t.edge})),tones,name+': pack color mismatch');
+ }
  assert.ok(source.includes('const tone=PIECE_COLORS[p.color]'),name+': missing team palette lookup');
  assert.ok(source.includes("fill:tone.base,stroke:tone.edge,'stroke-width':rim"),name+': illustration backing mismatched');
  assert.ok(source.includes("fill:tone.base,stroke:tone.edge,'stroke-width':border"),name+': text token mismatched');
