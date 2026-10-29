@@ -10,7 +10,7 @@ const pack=require('../content/packs/oc/pack.json');
 const expected={
  A:{B:'下次要多加注意哦，澄。',D:'抱歉麦冬——下次慢一些？',C:'注意背后~'},
  B:{A:'抱歉阿禾，我就先走一步咯！',D:'嘿！抓到麦冬了！'},
- D:{A:'抱歉啊，这儿我先收下啦。',B:'好机会！下次注意瞧着点(●´∀)σ',C:'不好意思哥，你再多逛一圈吧！'},
+ D:{A:'抱歉啊，这儿我先收下啦。',B:'好机会！下次记得瞧着点(●´∀)σ',C:'不好意思哥，你再多逛一圈吧！'},
  C:{A:'你还不够谨慎。',D:'麦冬，多注意点。'}
 };
 assert.equal(Object.values(expected).reduce((n,obj)=>n+Object.keys(obj).length,0),10);
