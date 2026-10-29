@@ -94,7 +94,8 @@
         "嚯！(꜆꜄꜆˙꒳˙)꜆꜄꜆"
       ],
       "secret": true,
-      "humanOnly": true
+      "humanOnly": true,
+      "artOffsetY": 4
     }
   },
   "teams": [
