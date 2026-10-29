@@ -5,6 +5,8 @@ const vm=require('node:vm');
 const path=require('node:path');
 const {projection}=require('../server.js');
 const GOAL=55;
+const active=require('../content/active.json').active;
+const pack=require('../content/packs/'+active+'/pack.json');
 
 // Server must walk across the goal and bounce unless the last die step is 55.
 const examples=[
@@ -43,7 +45,9 @@ function drawFrom(filename,role,storedPos,animatedPos){
    point:(color,pos,id)=>[450,350+pos],
    roleMark:()=>role,
    PIECE_REST_DIAMETER:60,PIECE_MOVE_DIAMETER:85,
-   PIECE_COLORS:[{base:'#A9CFF3',edge:'#416F9C'},{base:'#F4DEA0',edge:'#896424'},{base:'#A9D8B0',edge:'#417954'},{base:'#F2A7A7',edge:'#9B4D59'}],
+   PIECE_COLORS:pack.teams.map(t=>({base:t.base,edge:t.edge})),
+   ROLE_INFO:pack.characters,
+   GAME_CONTENT:pack,
    // The offline HTML embeds the actual PNG; a harmless URI stub suffices here.
    POPOYA_PNG:'data:image/png;base64,iVBORw0KGgo=',
    pieceLanding:null,
