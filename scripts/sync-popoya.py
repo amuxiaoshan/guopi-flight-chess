@@ -27,7 +27,11 @@ for name in ("piece-preview.html","piece-motion-test.html","piece-color-test.htm
         path.write_text(replacement,encoding="utf-8")
         print(name+": refreshed original PNG reference")
 
-# The OC content-pack builder copies identical bytes into content/packs/oc/assets
-# and public/content/assets/oc/assets and embeds them in standalone HTML.
+# A user explicitly updating the original PNG opts into syncing this artwork
+# to the OC pack. Normal content-pack rebuilds never replace artwork on their own.
+original_in_pack=root/'content/packs/oc/assets/popoya-original.png'
+original_in_pack.parent.mkdir(parents=True,exist_ok=True)
+if not original_in_pack.exists() or original_in_pack.read_bytes()!=png:
+    original_in_pack.write_bytes(png)
 subprocess.run([sys.executable,str(root/"scripts/build-content-pack.py")],check=True)
 print("Original PNG byte-for-byte synchronized; no image filters or transformations")
