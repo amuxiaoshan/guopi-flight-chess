@@ -1535,6 +1535,7 @@ refreshReturnSeat();
 // TEST BUILD ONLY: all board art, character tokens, drawPieces, animateMove,
 // projection and captureAlong are exactly the real offline game's code.
 const stepScenarios=[
+ {name:'连续三个6 · 第三次亮出点数后返航（3架）',color:3,enemyColor:0,start:17,die:6,enemy:[-1,-1,-1,-1],own:[-2,52,55],testPenalty:true},
  {name:'单枚踩棋 · 红方踩蓝方',color:3,enemyColor:0,start:10,die:2,enemy:[38,-1,-1,-1],own:[-1,-1,-1]},
  {name:'同格双枚 · 2 对 2',color:3,enemyColor:0,start:10,die:2,enemy:[38,38,-1,-1],own:[12,-1,-1]},
  {name:'跳格落地踩棋 · 蓝方踩红方',color:0,enemyColor:3,start:3,die:2,enemy:[35,-1,-1,-1],own:[-1,-1,-1]},
@@ -1551,8 +1552,8 @@ const stepScenarios=[
 let stepTestRunning=false,stepTestSerial=0,stepVictimStartCount=0;
 const testPanel=document.createElement('section');
 testPanel.id='stepTestPanel';
-testPanel.innerHTML='<div style="font-weight:700;font-size:15px">实机踩棋与终点道测试 · 正式棋盘与棋子</div>'+
- '<p style="font-size:12px;line-height:1.6;color:#677181;margin:7px 0">使用正式离线版行棋、踩棋判定和原版棋盘棋子。新增终点前最后一格防跳格测试，不进入联机房间。</p>'+
+testPanel.innerHTML='<div style="font-weight:700;font-size:15px">实机踩棋、终点道与三连6返航 · 正式棋盘与棋子</div>'+
+ '<p style="font-size:12px;line-height:1.6;color:#677181;margin:7px 0">使用正式离线版行棋、踩棋判定和原版棋盘棋子。包含第三个6点出现后全体返航测试，不进入联机房间。</p>'+
  '<select id="stepScene" aria-label="选择踩棋场景"></select>'+
  '<div style="display:flex;gap:8px;margin-top:9px"><button id="stepGo" type="button">固定骰点 · 开始踩棋</button><button id="stepReset" type="button">重新摆棋</button></div>'+
  '<div id="stepMessage" role="status" aria-live="polite" style="font-size:12px;min-height:24px;margin:9px 0 0;color:#44617c">准备测试</div>';
@@ -1564,7 +1565,8 @@ stepScenarios.forEach((x,i)=>{const o=document.createElement('option');o.value=i
 document.querySelector('#game .boardwrap').before(testPanel);
 const stepMsg=testPanel.querySelector('#stepMessage');
 function stepPrepare(){
- ++stepTestSerial; ++animationSerial;
+ ++stepTestSerial; ++animationSerial;++rollSerial;
+ cancelDiceSpin();stopDiceShake();
  clearCaptureFlights();animPiece=null;pieceLanding=null;
  const x=stepScenarios[Number(testSelect.value)||0];
  const mine={color:x.color,role:'A',name:'测试玩家',kind:'human',pieces:[x.start,...x.own],finished:false,auto:false};
@@ -1572,15 +1574,15 @@ function stepPrepare(){
  const plan=StepTestEngine.projection(x.start,x.die);
  if(!plan)throw Error('测试布局错误：无法走棋');
  // This is a normal game-board state, not a separate painted mock-up.
- state={phase:'playing',roundPhase:'choose',mode:'solo',players:[mine,enemy],
-  viewerColor:x.color,turn:x.color,die:x.die,options:[],note:'踩棋准备',finishOrder:[],seq:0};
+ state={phase:'playing',roundPhase:x.testPenalty?'roll':'choose',mode:'solo',players:[mine,enemy],
+  viewerColor:x.color,turn:x.color,die:x.testPenalty?null:x.die,options:[],note:x.testPenalty?'已连续两次掷出6，准备投第三次':'踩棋准备',finishOrder:[],seq:0};
  stepTestRunning=false;
  screen('game');renderGame();
- placeCube(x.die);$('diceStatus').textContent='固定 '+x.die+' 点';
+ placeCube(x.testPenalty?1:x.die);$('diceStatus').textContent=x.testPenalty?'准备第三次掷骰':'固定 '+x.die+' 点';
  $('roll').disabled=false;
  const button=testPanel.querySelector('#stepGo');
- button.disabled=false;button.textContent='掷出 '+x.die+' 点 · '+(x.testFinish?'走棋':'踩棋');
- stepMsg.textContent=x.testFinish?'已摆好实机棋子，点击走棋。终点前不会误触发跳格。':'已摆好实机棋子。先看被踩棋子的位置，再点「踩棋」。';
+ button.disabled=false;button.textContent=x.testPenalty?'第三次掷出 6 点':('掷出 '+x.die+' 点 · '+(x.testFinish?'走棋':'踩棋'));
+ stepMsg.textContent=x.testPenalty?'已有两次6点。红方三架飞机在起飞点、外圈与终点道，第四架已进终点。点击投出第三个6，先展示骰子结果，再三架一起返航。':(x.testFinish?'已摆好实机棋子，点击走棋。终点前不会误触发跳格。':'已摆好实机棋子。先看被踩棋子的位置，再点「踩棋」。');
  stepVictimStartCount=x.enemy.filter(v=>v>=0).length;
 }
 async function stepRun(){
@@ -1588,6 +1590,33 @@ async function stepRun(){
  stepTestRunning=true;
  const mySerial=stepTestSerial,x=stepScenarios[Number(testSelect.value)||0];
  const actor=state.players.find(p=>p.color===x.color);
+ if(x.testPenalty){
+  const button=testPanel.querySelector('#stepGo');
+  button.disabled=true;$('roll').disabled=true;
+  stepMsg.textContent='第三次掷出6点，注意骰子先显示6，飞机才一起返航。';
+  const returns=actor.pieces.flatMap((from,piece)=>from!==-1&&from!==GOAL
+   ?[{color:x.color,piece,from}]:[]);
+  const rollSeq=lastRollSeq+1;
+  // Reuse the real receive() and animateRoll() code with an authoritative
+  // test snapshot, exactly like a normal third-six state from the game engine.
+  const nextSeq=Math.max(1,lastSequence+1);
+  if(lastSequence<0)lastSequence=0;
+  const next={
+   ...state,seq:nextSeq,roundPhase:'rolling',die:6,sixStreak:3,
+   note:'连续三次掷出6点，尚未完成的飞机回基地',
+   players:state.players.map(p=>p.color===x.color
+    ?{...p,pieces:p.pieces.map(pos=>pos===GOAL?GOAL:-1)}:p),
+   lastRoll:{seq:rollSeq,color:x.color,value:6,returns}
+  };
+  receive(next);
+  await sleep(3100);
+  if(mySerial!==stepTestSerial)return;
+  const home=state.players.find(p=>p.color===x.color).pieces;
+  const pass=home.every((pos,i)=>i===3?pos===GOAL:pos===-1);
+  stepMsg.textContent=(pass?'规则通过：':'规则异常：')+'第3次6点已展示，'+returns.length+'架飞机同步返航，终点棋子保持不变；返航音效只响一次。';
+  button.textContent='本轮已完成';stepTestRunning=false;
+  return;
+ }
  const plan=StepTestEngine.projection(actor.pieces[0],x.die);
  if(!plan)throw Error('无法生成移动路径');
  const start=actor.pieces[0],captures=[],roles=[];
