@@ -1,0 +1,121 @@
+{
+  "id": "example",
+  "title": "飞行棋内容包模板",
+  "description": "空白替换示例：角色名、对话、棋子图和 UI 文案都可替换。",
+  "contentNotice": "示例占位内容；请自行确认导入素材的授权与署名要求。",
+  "characters": {
+    "A": {
+      "name": "角色1",
+      "mark": "1",
+      "pieceImage": null,
+      "collision": [
+        "角色1 的碰撞台词"
+      ]
+    },
+    "B": {
+      "name": "角色2",
+      "mark": "2",
+      "pieceImage": null,
+      "collision": [
+        "角色2 的碰撞台词"
+      ]
+    },
+    "C": {
+      "name": "角色3",
+      "mark": "3",
+      "pieceImage": null,
+      "collision": [
+        "角色3 的碰撞台词"
+      ]
+    },
+    "D": {
+      "name": "角色4",
+      "mark": "4",
+      "pieceImage": null,
+      "collision": [
+        "角色4 的碰撞台词"
+      ]
+    },
+    "E": {
+      "name": "角色5",
+      "mark": "5",
+      "pieceImage": null,
+      "collision": [
+        "角色5 的碰撞台词"
+      ]
+    },
+    "F": {
+      "name": "角色6",
+      "mark": "6",
+      "pieceImage": null,
+      "collision": [
+        "角色6 的碰撞台词"
+      ]
+    },
+    "G": {
+      "name": "角色7",
+      "mark": "7",
+      "pieceImage": null,
+      "collision": [
+        "角色7 的碰撞台词"
+      ]
+    },
+    "H": {
+      "name": "角色8",
+      "mark": "8",
+      "pieceImage": null,
+      "collision": [
+        "角色8 的碰撞台词"
+      ]
+    }
+  },
+  "teams": [
+    {
+      "key": "blue",
+      "name": "蓝",
+      "ui": "#41a7f5",
+      "base": "#A9CFF3",
+      "edge": "#416F9C"
+    },
+    {
+      "key": "yellow",
+      "name": "黄",
+      "ui": "#f6c945",
+      "base": "#F4DEA0",
+      "edge": "#896424"
+    },
+    {
+      "key": "green",
+      "name": "绿",
+      "ui": "#58c26a",
+      "base": "#A9D8B0",
+      "edge": "#417954"
+    },
+    {
+      "key": "red",
+      "name": "红",
+      "ui": "#ef5350",
+      "base": "#F2A7A7",
+      "edge": "#9B4D59"
+    }
+  ],
+  "art": {
+    "board": "/board.svg",
+    "resultImage": null,
+    "backgroundImage": null,
+    "logoImage": null
+  },
+  "ui": {
+    "welcomeTitle": "飞行棋内容包模板",
+    "welcomeSubtitle": "——是飞行棋！",
+    "gameTitle": "飞行棋内容包模板",
+    "documentTitle": "飞行棋内容包模板",
+    "downloadName": "飞行棋模板_单人版.html",
+    "welcomeDescription": "单人可选 1～3 个电脑。多人支持 2～4 个真人，并可由房主补电脑。"
+  },
+  "theme": {
+    "--ink": "#27292e",
+    "--muted": "#878b91",
+    "--pack-accent": "#557a93"
+  }
+}
