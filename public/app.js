@@ -500,14 +500,10 @@ function point(color,pos,id){
 }
 function svg(tag,props,parent){const el=document.createElementNS(NS,tag);Object.entries(props).forEach(([k,v])=>el.setAttribute(k,String(v)));parent.appendChild(el);return el;}
 function piecePosition(p,id){if(animPiece?.color===p.color&&animPiece?.id===id)return animPiece.pos;return p.pieces[id];}
-// Popoya artwork is displayed at its original aspect ratio, with no altered pixels.
-// A larger screen-space token is necessary for the detailed chibi face to be readable.
-// V2 ignores the previous oversized default / preference from the first preview.
-const POPOYA_SIZE_KEY='guopi_popoya_piece_diameter_v3';
-function popoyaDiameter(){
- try{const n=Number(localStorage.getItem(POPOYA_SIZE_KEY));if(Number.isFinite(n)&&n>=48&&n<=80)return n;}catch{}
- return 70; // Full diameter including the subtle black ring; board lines are 2.4 units.
-}
+// Only the currently moving Popoya token grows. Its original PNG is never modified.
+const POPOYA_REST_DIAMETER=60;
+const POPOYA_MOVE_DIAMETER=85;
+let popoyaLanding=null;
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
  for(let color=0;color<4;color++){
@@ -515,7 +511,7 @@ function drawPieces(){
   svg('circle',{cx,cy,r:18,fill:'#fffdf9',stroke:COLOR[color].hex,'stroke-width':3,class:'launch-circle','pointer-events':'none'},node);
  }
  const packs=new Map();
- const popoyaSize=popoyaDiameter();
+ const popoyaSize=POPOYA_REST_DIAMETER;
  for(const p of state.players)for(let id=0;id<4;id++){
   const pos=piecePosition(p,id);if(pos===GOAL)continue;
   const [x,y]=point(p.color,pos,id),key=`${x},${y}`;
@@ -528,7 +524,10 @@ function drawPieces(){
   // Mixed-color stacks share the same square; give each piece a visible seat.
   const packed=count>1, hasPopoya=pack.some(item=>item.p.role==='E');
   const spacing=packed?(hasPopoya?44:30):0;
-  const radius=p.role==='E'?(packed?Math.min(20,Math.round(popoyaSize*.34)):popoyaSize/2):(packed?17:24);
+  const movingPopoya=p.role==='E'&&animPiece?.color===p.color&&animPiece?.id===id;
+  const openingPopoya=movingPopoya&&animPiece.growing;
+  const landingPopoya=p.role==='E'&&popoyaLanding?.color===p.color&&popoyaLanding?.id===id;
+  const radius=p.role==='E'?(movingPopoya?POPOYA_MOVE_DIAMETER/2:(packed?Math.min(20,Math.round(popoyaSize*.34)):popoyaSize/2)):(packed?17:24);
   const border=p.role==='E'?(packed?2.8:3.2):(packed?3.5:5), fontSize=packed?16:22;
   const dx=packed?(i%colCount-(colCount-1)/2)*spacing:0;
   const dy=packed?(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*spacing:0;
@@ -541,8 +540,16 @@ function drawPieces(){
    // Only the SOLID-COLORED ROUND BASE receives the dark stroke.
    // Popoya's original PNG and its pre-existing white outline are untouched.
    const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed?3.5:4);
-   svg('circle',{r:discRadius,fill:COLOR[p.color].hex,stroke:'#111111','stroke-width':rim},group);
+   const sprite=svg('g',{},sprite);
+   svg('circle',{r:discRadius,fill:COLOR[p.color].hex,stroke:'#111111','stroke-width':rim},sprite);
    svg('image',{href:'/assets/popoya-original.png?v=popoya-7b365e61961d',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
+   // Scale the entire colored disc + unmodified artwork together.
+   // Existing compact stacks stay compact when resting.
+   if(openingPopoya||landingPopoya){
+    const restDiameter=packed?2*Math.min(20,Math.round(popoyaSize*.34)):POPOYA_REST_DIAMETER;
+    const fromScale=openingPopoya?restDiameter/POPOYA_MOVE_DIAMETER:POPOYA_MOVE_DIAMETER/restDiameter;
+    svg('animateTransform',{attributeName:'transform',attributeType:'XML',type:'scale',from:fromScale.toFixed(5),to:'1',dur:openingPopoya?'165ms':'175ms',fill:'freeze'},sprite);
+   }
   }else{
    svg('circle',{r:radius,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':border},group);
    const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},group);letter.textContent=roleMark(p.role);
@@ -651,7 +658,7 @@ async function animateRoll(n){
  // The server still holds this face on screen before progressing.
  $('diceStatus').textContent=`${n} 点`;
 }
-async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start};drawPieces();
+async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start,growing:true};drawPieces();animPiece.growing=false;
  for(let k=0;k<move.path.length;k++){
   const step=move.path[k];await sleep(step.kind==='飞跃'?260:step.kind==='跳格'?230:140);
   if(mine!==animationSerial)return;
@@ -659,7 +666,7 @@ async function animateMove(move){$('bubble').style.display='none';const mine=++a
   if(k===move.path.length-1&&step.pos===GOAL)playGoalPieceSound(move.goalOrdinal);
    else playStepPop();
  }
- await sleep(100);if(mine!==animationSerial)return;animPiece=null;drawPieces();
+ await sleep(100);if(mine!==animationSerial)return;popoyaLanding={color:move.color,id:move.piece};animPiece=null;drawPieces();popoyaLanding=null;
  if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
 function rules(){dialog('游戏说明','每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。房主离开三分钟后按真人原始入房顺序移交，期间回来保留房主身份。');}

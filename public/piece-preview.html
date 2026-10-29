@@ -6,23 +6,22 @@ main{max-width:510px;margin:auto;background:#fff;padding:20px 18px 27px;border-r
 a{color:#537a9b;text-decoration:none;font-size:13px}h1{font-size:23px;margin:16px 0 6px;font-weight:650}p{font-size:13px;color:#757a84;line-height:1.75;margin:0 0 12px}
 h2{font-size:14px;margin:16px 0 9px}.colors{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.sample{border:1px solid #e5e6e8;border-radius:13px;padding:11px 3px;text-align:center}.sample b{display:block;font-size:12px;font-weight:550;margin-top:7px}.sample svg{width:100%;height:80px;max-width:100%}.board{position:relative;aspect-ratio:1;background:#fafafa;border-radius:12px;overflow:hidden;margin-top:10px}.board img,.board svg{position:absolute;width:100%;height:100%;inset:0}.board svg{pointer-events:none}.sampleRow{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:8px}.sampleRow svg{width:110px;height:110px;max-width:100%}.stack{background:#fafbfb;padding:12px 7px;border-radius:12px;flex:1;text-align:center}.stack p{font-size:12px;margin:0}.resize{margin:12px 0 18px;background:#fff7ec;padding:13px 14px;border:1px solid #eedcc0;border-radius:13px}.resize label{font-size:14px;display:flex;justify-content:space-between;gap:8px;font-weight:600}.resize input{width:100%;accent-color:#b38b56;margin:16px 0 7px}.resize small{font-size:12px;color:#85735f}.resize button{border:1px solid #dabd94;background:#fffdf8;border-radius:10px;padding:7px 14px;margin-top:8px;font:inherit;color:#685039;cursor:pointer}.note{font-size:12px;color:#878b93;background:#f8f9fb;border:1px solid #ecedf0;border-radius:12px;padding:11px;margin-top:16px}
 </style></head>
-<body><main><a href="/">‹ 返回正式游戏</a><h1>波波亚 · 棋子试装</h1>
+<body><main><a href="/">‹ 返回正式游戏</a>　<a href="/piece-motion-test.html">波波亚 · 移动放大测试</a><h1>波波亚 · 棋子试装</h1>
 <p>试装只使用原始 256×256 透明 PNG，白边和所有绘制像素保持原样。蓝、黄、绿、红四种背景圆片对应玩家阵营。</p>
-<div class="resize"><label for="pieceSize">调整彩色圆棋子的直径 <output id="sizeText">70 单位</output></label><input type="range" id="pieceSize" min="48" max="80" step="2" value="70"><small>现在默认直径 70（包括细黑边），黑边 3.2 单位，略粗于棋盘主要线稿的 2.4 单位。原图保持不变。</small><div><button type="button" id="resetSize">恢复推荐大小 70</button></div></div><h2>四种棋子颜色</h2><div id="colors" class="colors"></div>
+<div class="resize"><label for="pieceSize">调整彩色圆棋子的直径 <output id="sizeText">60 单位</output></label><input type="range" id="pieceSize" min="48" max="90" step="2" value="60"><small>正式游戏待机直径 60，移动时 85；预览滑块不影响游戏（包括细黑边），黑边 3.2 单位，略粗于棋盘主要线稿的 2.4 单位。原图保持不变。</small><div><button type="button" id="resetSize">预览恢复 60</button></div></div><h2>四种棋子颜色</h2><div id="colors" class="colors"></div>
 <h2>棋盘上的实际比例</h2><div class="board"><img src="/board.svg" alt="飞行棋棋盘"><svg id="board" viewBox="0 0 900 900" aria-label="四种颜色的波波亚棋子在棋盘上的样子"></svg></div>
 <h2>大小对比（对应正式游戏绘图尺寸）</h2><div class="sampleRow">
 <div class="stack"><svg id="before" viewBox="-64 -64 128 128"></svg><p>修改前 · 48 单位</p></div>
-<div class="stack"><svg id="normal" viewBox="-64 -64 128 128"></svg><p id="normalLabel">细黑边 · 70 单位</p></div>
+<div class="stack"><svg id="normal" viewBox="-64 -64 128 128"></svg><p id="normalLabel">细黑边 · 60 单位</p></div>
 <div class="stack"><svg id="packed" viewBox="-64 -64 128 128"></svg><p id="packedLabel">多人堆叠 · 40 单位</p></div>
 </div>
-<div class="note">黑边只描在阵营色圆形底板外圈，粗细 3.2 单位，相比棋盘线稿 2.4 单位仅略宽。波波亚 PNG 的颜色、透明度、白边完全不变；棋子默认直径 70，离线版相同。</div>
+<div class="note">黑边只描在阵营色圆形底板外圈，粗细 3.2 单位，相比棋盘线稿 2.4 单位仅略宽。波波亚 PNG 的颜色、透明度、白边完全不变；正式版与离线版待机 60、移动 85；本页滑块仅调整对比预览。</div>
 </main>
 <script>
 const NS='http://www.w3.org/2000/svg',ASSET='/assets/popoya-original.png?v=popoya-7b365e61961d';
 const COLORS=[{name:'红色',hex:'#ef5350',point:[450,150]},{name:'黄色',hex:'#f6c945',point:[750,450]},{name:'绿色',hex:'#58c26a',point:[150,450]},{name:'蓝色',hex:'#41a7f5',point:[450,750]}];
 function svg(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,String(v));parent.appendChild(e);return e;}
-const KEY='guopi_popoya_piece_diameter_v3';
-function getSize(){try{const n=Number(localStorage.getItem(KEY));if(n>=48&&n<=80)return n;}catch{}return 70;}
+function getSize(){return 60;}
 function token(parent,x,y,hex,r=30,isPacked=false){
  const g=svg('g',{transform:'translate('+x+' '+y+')'},parent);
  // Black border belongs to the plain team-color circle, NOT the PNG outline.
@@ -62,12 +61,10 @@ function render(){
 document.getElementById('pieceSize').value=String(getSize());
 document.getElementById('pieceSize').addEventListener('input',e=>{
  const n=Number(e.target.value);
- try{localStorage.setItem(KEY,String(n));}catch{}
  render();
 });
 document.getElementById('resetSize').addEventListener('click',()=>{
- document.getElementById('pieceSize').value='70';
- try{localStorage.setItem(KEY,'70');}catch{}
+ document.getElementById('pieceSize').value='60';
  render();
 });
 render();
