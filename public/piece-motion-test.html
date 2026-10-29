@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>适得棋所 · 波波亚走棋放大测试</title>
+<title>适得棋所 · 全角色棋子动态测试</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f4f5f7;color:#303741;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:20px 12px 48px}
@@ -15,7 +15,7 @@ p,.hint{color:#687484;font-size:13px;line-height:1.75}
 .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 button{border:1px solid #ccd5df;background:#fff;border-radius:11px;padding:10px 17px;cursor:pointer;color:#33465a;font:inherit}
 button.primary{background:#476f9c;color:#fff;border-color:#476f9c}
-button:disabled{opacity:.55;cursor:not-allowed}
+button:disabled{opacity:.55;cursor:not-allowed}select{font:inherit;border:1px solid #ccd5df;border-radius:9px;padding:7px 10px;background:#fff;color:#33465a;max-width:100%}
 .controls{background:#f6f8fb;border-radius:13px;padding:14px;margin-top:14px}
 .control{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:600;margin-bottom:5px}
 input[type=range]{width:100%;accent-color:#587fa8;margin:8px 0 12px}
@@ -29,15 +29,15 @@ input[type=range]{width:100%;accent-color:#587fa8;margin:8px 0 12px}
 </style></head>
 <body><main>
 <a href="/">‹ 返回游戏</a>　<a href="/piece-preview.html">查看原有棋子试装</a>
-<h1>波波亚 · 移动放大测试</h1>
-<p>按照正式棋盘比例预览：待机为 60 单位，开始移动时放大到 85 单位，移动期间保持放大，到达终点再缩回 60。原 PNG、阵营色底盘和细黑边均不修改。</p>
+<h1>全角色 · 棋子移动放大测试</h1>
+<p>全部八名角色都采用同一套走棋尺寸：静止 60，移动 85，落地恢复 60。没有插图的角色暂时以原本的文字棋子演示；波波亚继续使用你的原始 PNG。</p><div class="row"><label for="role">测试角色</label><select id="role"><option value="A">青栖禾</option><option value="B">澄</option><option value="C">勒尔斯</option><option value="D">麦冬</option><option value="E" selected>波波亚</option><option value="F">麻特</option><option value="G">塔努利安</option><option value="H">亚洛</option></select></div>
 <div class="samples">
 <div class="sample"><svg id="restSample" viewBox="-55 -55 110 110"></svg><div><strong>静止状态</strong><small>60 单位</small></div></div>
 <div class="sample"><svg id="moveSample" viewBox="-55 -55 110 110"></svg><div><strong>移动状态</strong><small id="moveLabel">85 单位</small></div></div>
 </div>
 <div class="board">
 <img src="/board.svg" alt="正式游戏棋盘">
-<svg id="board" viewBox="0 0 900 900" aria-label="波波亚沿着棋盘格子移动的动态演示"></svg>
+<svg id="board" viewBox="0 0 900 900" aria-label="八名角色棋子沿棋盘移动的动态演示"></svg>
 </div>
 <div class="row">
 <button class="primary" id="play">播放走棋动画</button>
@@ -56,6 +56,7 @@ input[type=range]{width:100%;accent-color:#587fa8;margin:8px 0 12px}
 'use strict';
 const NS='http://www.w3.org/2000/svg', IMAGE='/assets/popoya-original.png?v=popoya-7b365e61961d';
 const COLORS={red:'#ef5350',yellow:'#f6c945',green:'#58c26a',blue:'#41a7f5'};
+const MARKS={A:'禾',B:'澄',C:'勒',D:'麦',F:'麻',G:'塔',H:'亚'};
 const PATH=[[608,92],[625,150],[625,200],[608,258],[642,292],[700,275],[750,275],[808,292]];
 const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function svg(tag,attrs,parent){
@@ -64,20 +65,33 @@ function svg(tag,attrs,parent){
  parent.appendChild(node);return node;
 }
 function drawToken(parent,diameter,hex){
- const g=svg('g',{},parent),radius=diameter/2,border=3.2,artRadius=radius-4;
- svg('circle',{r:radius-border/2,fill:hex,stroke:'#111','stroke-width':border},g);
- svg('image',{href:IMAGE,x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},g);
+ const g=svg('g',{},parent),radius=diameter/2,ratio=diameter/60,role=$('role').value;
+ if(role==='E'){
+  const border=3.2*ratio,artRadius=26*ratio;
+  svg('circle',{r:radius-border/2,fill:hex,stroke:'#111','stroke-width':border},g);
+  svg('image',{href:IMAGE,x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},g);
+ }else{
+  svg('circle',{r:radius,fill:'#fff',stroke:hex,'stroke-width':5*ratio},g);
+  const text=svg('text',{x:0,y:1*ratio,'text-anchor':'middle','dominant-baseline':'central','font-size':22*ratio,fill:'#272a30'},g);
+  text.textContent=MARKS[role]||'?';
+ }
  return g;
 }
 const board=$('board');
+const otherGroups=[];
 for(const [hex,x,y] of [[COLORS.yellow,750,450],[COLORS.green,150,450],[COLORS.blue,450,750]]){
- const g=svg('g',{transform:'translate('+x+' '+y+')'},board);drawToken(g,60,hex);
+ const g=svg('g',{transform:'translate('+x+' '+y+')'},board);otherGroups.push([g,hex]);
 }
 const walker=svg('g',{transform:'translate('+PATH[0].join(' ')+')'},board);
-const sprite=drawToken(walker,60,COLORS.red);
-sprite.style.transformOrigin='center';
-sprite.style.transformBox='fill-box';
-sprite.style.transition='transform 165ms ease-out';
+let sprite;
+function refreshRole(){
+ for(const [g,hex] of otherGroups){g.replaceChildren();drawToken(g,60,hex);}
+ walker.replaceChildren();sprite=drawToken(walker,60,COLORS.red);
+ sprite.style.transformOrigin='center';sprite.style.transformBox='fill-box';sprite.style.transition='transform 165ms ease-out';
+ $('restSample').replaceChildren();drawToken($('restSample'),60,COLORS.red);
+ $('moveSize').oninput();
+}
+
 let moving=false,playing=false,serial=0;
 function moveDiameter(){return Number($('moveSize').value);}
 function zoom(active){
@@ -115,7 +129,6 @@ $('moveSize').oninput=()=>{
 };
 $('speed').oninput=()=>$('speedValue').textContent=$('speed').value+' 毫秒/格';
 $('play').onclick=play;$('reset').onclick=reset;
-drawToken($('restSample'),60,COLORS.red);
-$('moveSize').oninput();
-reset();
+$('role').onchange=()=>{reset();refreshRole();};
+refreshRole();reset();
 </script></body></html>
