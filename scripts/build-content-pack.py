@@ -25,7 +25,7 @@ def once(source,old,new,label):
     return source.replace(old,new,1)
 
 def subs(source,pattern,replacement,label):
-    result,n=re.subn(pattern,replacement,source,count=1,flags=re.S)
+    result,n=re.subn(pattern,lambda match: replacement,source,count=1,flags=re.S)
     if n!=1: raise RuntimeError("could not find "+label)
     return result
 
@@ -65,6 +65,8 @@ def render_pack(raw,id,offline):
             asset_paths.append(("art "+key,built["art"],key))
     for label,parent,key in asset_paths:
         item=parent[key]
+        if not isinstance(item,str) or not item:
+            raise ValueError(label+': invalid asset path')
         if item.startswith("/"):
             if offline and item.startswith("/content/"):
                 raise ValueError("Offline pack cannot embed external content path: "+item)
@@ -224,7 +226,7 @@ def migrate_html(source,offline=False):
 
 def generate():
     parser=argparse.ArgumentParser()
-    parser.add_argument('--use',help='Switch active pack before building; e.g. example or wenrouxiang')
+    parser.add_argument('--use',help='Switch active pack before building; e.g. example or oc')
     a=parser.parse_args()
     activeFile=CONTENT/"active.json"
     active=json.loads(activeFile.read_text(encoding="utf-8"))
@@ -237,7 +239,7 @@ def generate():
     raw=json.loads((CONTENT/"packs"/id/"pack.json").read_text(encoding="utf-8"))
     validate(raw,id)
     # Keep the original source PNG mirrored into its own independent content pack.
-    if id=="wenrouxiang":
+    if id=="oc":
         original=PUBLIC/"assets"/"popoya-original.png"
         bundled=CONTENT/"packs"/id/"assets"/"popoya-original.png"
         if original.exists() and (not bundled.exists() or bundled.read_bytes()!=original.read_bytes()):
@@ -263,19 +265,10 @@ def generate():
         html=subs(html,r"const COLLISION_LINES = \{[\s\S]*?\n\};",
            "const COLLISION_LINES=Object.fromEntries(Object.entries(globalThis.GAME_CONTENT.characters).map(([id,data])=>[id,data.collision||[]]));",
            "offline room collision lines")
-        html=once(html,"const ROLE_INFO={\n",
-            "const ROLE_INFO={\n","offline role sentinel") # use migrate_client for full block later
-        # Offline app uses a local $ and an IIFE instead of a shared module.
-        html=once(html,
-            "const $ = id => document.getElementById(id);",
-            "const $ = id => document.getElementById(id);\nconst GAME_CONTENT=globalThis.GAME_CONTENT;",
-            "offline pack reference")
-        # Skip the already-inserted declaration when reusing client migration.
-        html=html.replace("const GAME_CONTENT=globalThis.GAME_CONTENT;\n","const GAME_CONTENT=globalThis.GAME_CONTENT;\n",1)
-        # Re-run the generic client migration by temporarily removing the inserted declaration.
-        html=once(html,"const GAME_CONTENT=globalThis.GAME_CONTENT;\n","", "offline shared declaration for migration")
         html=migrate_client(html,offline=True)
-    packScript='<script id="content-pack-data">globalThis.GAME_CONTENT='+json.dumps(offline,ensure_ascii=False,separators=(",",":"))+';</script>\n'
+    # Keep inline JSON safe even if imported dialogue contains literal HTML script tags.
+    safe_json=json.dumps(offline,ensure_ascii=False,separators=(",",":")).replace("<",r"\u003c")
+    packScript='<script id="content-pack-data">globalThis.GAME_CONTENT='+safe_json+';</script>\n'
     html=once(html,"<script>\n(function(){",packScript+"<script>\n(function(){","offline pack embed")
     file_replace(single,html)
     print("Built content pack:",id,"(online + self-contained offline)")
