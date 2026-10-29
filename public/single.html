@@ -1443,7 +1443,7 @@ function placeCaptureBubble(){
  const vh=window.innerHeight||document.documentElement.clientHeight;
  const leftEdge=Math.max(8,8-br.left),rightEdge=Math.min(br.width-8,vw-br.left-8);
  const left=Math.max(leftEdge,Math.min(speakerX-width/2,Math.max(leftEdge,rightEdge-width)));
- const arrowX=Math.max(16,Math.min(width-16,speakerX-left));
+ const arrowX=Math.max(10,Math.min(width-10,speakerX-left));
  const topEdge=Math.max(8,8-br.top),bottomEdge=Math.min(br.height-8,vh-br.top-8),gap=11;
  const aboveFits=speakerTop-gap-height>=topEdge;
  const belowFits=speakerBottom+gap+height<=bottomEdge;
