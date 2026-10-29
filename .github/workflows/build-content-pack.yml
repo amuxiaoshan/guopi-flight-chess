@@ -10,6 +10,7 @@ on:
       - 'tests/content-pack.test.js'
       - 'tests/oc-art-preview.test.js'
       - 'tests/same-color-hop.test.js'
+      - 'tests/exit-mode-copy.test.js'
       - 'server.js'
       - 'public/app.js'
       - 'public/single.html'
@@ -74,6 +75,7 @@ jobs:
           node tests/secret-role.test.js
           node tests/oc-art-preview.test.js
           node tests/same-color-hop.test.js
+          node tests/exit-mode-copy.test.js
       - name: Verify content pack idempotence
         run: |
           python3 scripts/build-content-pack.py
