@@ -123,6 +123,17 @@ input,select{font-size:16px}
 }
 #myToken .secret-question-hit:focus:not(:focus-visible){outline:none}
 #myToken .secret-question-hit:focus-visible{outline:2px solid #416f9c;outline-offset:1px}
+
+/* Readable, scrollable in-game rules without changing ordinary confirmation dialogs. */
+.shade.rules-dialog .dialog{
+ display:flex;flex-direction:column;max-height:min(88dvh,780px);
+}
+.shade.rules-dialog .dialog h3{flex:none;margin-top:0;line-height:1.5}
+.shade.rules-dialog #dlgText{
+ white-space:pre-line;overflow-y:auto;overscroll-behavior:contain;
+ min-height:0;padding-right:5px;font-size:13px;line-height:1.75;color:#4b525d;
+}
+.shade.rules-dialog .dialogActions{flex:none;margin-top:14px}
 </style></head>
 <body><main>
 <section id="welcome" class="screen active">
