@@ -593,6 +593,23 @@ let pieceLanding=null;
 // Keep each victim on its original square until its actual impact step.
 const CAPTURE_RETURN_MS=190;
 const CAPTURE_IMPACT_HOLD_MS=40;
+
+// R0T0R "8 bit Laser" (Pixabay Content License).
+// Start at the first frame of a stepped-on piece's straight-line return.
+// Reuse preloaded players so repeated captures can overlap without holding the turn.
+const CAPTURE_RETURN_AUDIO_SRC="/assets/step-return-8bit-laser.mp3";
+const captureReturnAudioPool=typeof Audio==='function'?Array.from({length:3},()=>{
+ const a=new Audio(CAPTURE_RETURN_AUDIO_SRC);a.preload='auto';a.volume=0.78;return a;
+}):[];
+let captureReturnAudioIndex=0;
+function playCaptureReturnSound(){
+ if(!goalSoundEnabled||!captureReturnAudioPool.length)return;
+ const a=captureReturnAudioPool[captureReturnAudioIndex++%captureReturnAudioPool.length];
+ try{
+  a.pause();a.currentTime=0;
+  const started=a.play();if(started&&typeof started.catch==='function')started.catch(()=>{});
+ }catch{}
+}
 let captureFlights=[];
 function clearCaptureFlights(){
  for(const flight of captureFlights)flight.animation?.cancel();
@@ -604,6 +621,7 @@ function launchCaptureStep(stepIndex,serial){
  const impacted=captureFlights.filter(f=>f.step===stepIndex&&f.phase==='waiting');
  if(!impacted.length)return;
  const board=$('pieces'),layer=$('captures');
+ let startedFlights=0;
  for(const flight of impacted){
   const selector='[data-color="'+flight.color+'"][data-piece="'+flight.piece+'"]';
   const original=board.querySelector(selector);
@@ -616,7 +634,7 @@ function launchCaptureStep(stepIndex,serial){
   const match=/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/.exec(fromTransform);
   const from=match?[Number(match[1]),Number(match[2])]:point(flight.color,flight.from,flight.piece);
   const to=point(flight.color,-1,flight.piece);
-  layer.appendChild(ghost);
+  layer.appendChild(ghost);startedFlights++;
   if(typeof ghost.animate==='function'){
    flight.animation=ghost.animate([
     {transform:'translate('+from[0]+'px,'+from[1]+'px)'},
@@ -631,6 +649,7 @@ function launchCaptureStep(stepIndex,serial){
    ghost.remove();flight.phase='done';drawPieces();
   },CAPTURE_RETURN_MS);
  }
+ if(startedFlights)playCaptureReturnSound();
  drawPieces();
 }
 function drawPieces(){
