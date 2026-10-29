@@ -47,15 +47,23 @@ for(const name of ['app.js','single.html']){
   vm.runInNewContext(ruleCode+'\nrules();',context);
   return events[0];
  };
- const soloRules=rulesFor('solo');
- assert.match(soloRules.body,/跳格/);
- assert.match(soloRules.body,/单人游戏/);
- assert.doesNotMatch(soloRules.body,/电脑托管|电脑暂时接管|房主离开|返回接管|按入房顺序移交/,name+': solo rules mention multiplayer takeover');
- assert.ok(soloRules.body.includes('\n\n'),name+': rule paragraphs have real line breaks');
- const multiRules=rulesFor('online');
- assert.match(multiRules.body,/电脑暂时接管|返回接管/,name+': multiplayer rules retained');
- assert.doesNotMatch(rulesFor('home').body,/电脑暂时接管/,name+': welcome rules should be mode-neutral');
+ const expectedRules=[
+  '→人数与目标\n2–4人，每人4架飞机。最先让全部4架飞机精确到达终点者获胜。',
+  '→起飞\n掷出【6点】才能起飞一架飞机，并可再掷一次。',
+  '→行棋\n按骰子点数前进。棋子停在与自己同色的格子上，可向前跳4格；跳格后不可再连跳。',
+  '→飞棋（虚线）\n· 直接走到同色虚线格：沿虚线飞到对面。\n· 通过跳格到达虚线格：不能飞过去。',
+  '→撞击与迭子\n停在对方棋子所在格，对方回基地。若对方有多个棋子在这个格子里，那么对方不会回到基地。想要对方回到基底需要有相同数量的棋子在这一格里。',
+  '→终点\n必须恰好到达终点；若投掷点数超出则往回退多余步数。',
+  '→惩罚\n连续三次掷出6点，己方飞机全部返回基地。'
+ ].join('\n\n');
+ for(const mode of ['solo','online','home']){
+  const snapshot=rulesFor(mode);
+  assert.equal(snapshot.title,'【适得其所】飞行棋规则',name+': rules title');
+  assert.equal(snapshot.body,expectedRules,name+': exact seven-section rules in '+mode);
+  assert.doesNotMatch(snapshot.body,/单人游戏由电脑|电脑托管|电脑暂时接管|房主离开|返回接管|提前结束并结算/,name+': removed obsolete mode-specific notes');
+ }
+ assert.ok(source.includes("classList.toggle('rules-dialog'"),name+': rule-specific scroll layout');
  assert.ok(source.includes("'continueText').textContent=isSoloMode()?"),name+': vote prompt should differ by mode');
  assert.ok(source.includes("'continueNo').textContent=isSoloMode()?'退出比赛'"),name+': solo vote button must not mention takeover');
 }
-console.log('PASS: solo exit confirmation only, multiplayer takeover retained, separate rules/vote copy online and offline');
+console.log('PASS: solo exit prompts, exact seven-section unified rules, vote text online/offline');
