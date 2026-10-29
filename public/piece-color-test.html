@@ -30,6 +30,11 @@ h2{font-size:16px;margin:0 0 6px}
 .board svg{overflow:visible}
 .legend{display:flex;flex-wrap:wrap;gap:9px 15px;margin-top:12px;font-size:12px;color:#5e6a78}
 .legend i{width:12px;height:12px;border-radius:50%;display:inline-block;vertical-align:-2px;margin-right:4px;border:1px solid #373a3f}
+.edge-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:11px 0 20px}
+.edge-card{cursor:pointer;text-align:center;border:2px solid #e7eaf0;border-radius:14px;background:white;padding:12px 5px 9px;color:#3a4350;font:inherit;min-width:0}
+.edge-card[aria-pressed=true]{border-color:#7a9bc1;box-shadow:0 4px 15px #6b8fb826}
+.edge-card svg{display:block;width:100%;height:80px;max-width:136px;margin:0 auto 5px;overflow:visible}
+.edge-card strong{display:block;font-size:13px}.edge-card small{display:block;font-size:11px;color:#788494;margin-top:4px}
 .note{background:#fff;border:1px solid #e9edf2;border-radius:12px;padding:10px 13px;margin-top:14px;font-size:12px;color:#707987;line-height:1.8}
 @media(max-width:630px){.compare{grid-template-columns:1fr}.card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:0 10px;align-items:center}.card strong,.card small{grid-column:1}.card .tokens{grid-column:2;grid-row:1/4;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin:0}.token svg{max-width:72px}.token span{font-size:9px}.board-panel{padding:12px}}
 </style>
@@ -37,16 +42,19 @@ h2{font-size:16px;margin:0 0 6px}
 <body>
 <main>
 <header><a href="/">‹ 返回正式游戏</a>　<a href="/piece-motion-test.html">动态走棋测试</a></header>
-<h1>棋子颜色 · 三组对比</h1>
-<p>同一张波波亚原始 PNG、同样的 60 单位棋子和细黑边，只更换棋子阵营色底盘。选择一组，就能看它放在真实棋盘上的效果。<strong>这只是试色，不会改变正式游戏配色。</strong></p>
+<h1>棋子淡彩与描边试装</h1>
+<p>默认选用你刚确定的柔和淡彩底盘。下面可以直接对比近黑色、深灰色和柔灰色描边，再看它们在棋盘上的实际效果。<strong>这只是试色，不会改变正式游戏配色。</strong></p>
 <section class="compare" id="choices" aria-label="三套棋子色卡"></section>
+<h2>描边颜色对比</h2>
+<p>三组直径、描边粗细均相同（60 单位 / 3.2 单位），只改变描边色。图片不做任何加工。</p>
+<section class="edge-choices" id="edgeChoices" aria-label="不同深浅的描边"></section>
 <section class="board-panel">
 <h2 id="selectedTitle">柔和淡彩 · 棋盘预览</h2>
 <div class="sub" id="selectedText">饱和度适中，颜色更柔和，仍能区分四方。</div>
 <div class="board"><img src="/board.svg" alt="正式游戏棋盘"><svg id="boardPieces" viewBox="0 0 900 900" role="img" aria-label="选中配色在棋盘上的实际比例"></svg></div>
 <div id="legend" class="legend"></div>
 </section>
-<div class="note">原始插图不调色、不加滤镜，不改白边或透明度。彩色圆底的黑边维持 3.2 单位。这里是静止状态的 60 单位；游戏里移动仍放大到 85 单位。最终选哪一组，由你决定。</div>
+<div class="note">原始插图不调色、不加滤镜，不改白边或透明度。彩色圆底的描边粗细维持 3.2 单位，颜色可在上方切换。这里是静止状态的 60 单位；游戏里移动仍放大到 85 单位。最终选哪一组，由你决定。</div>
 </main>
 <script>
 'use strict';
@@ -59,14 +67,23 @@ const PALETTES=[
  {id:'milky',name:'奶雾浅彩',note:'更浅、更轻',description:'接近奶油色系，角色图片更突出。',colors:['#F6BABA','#F7E7B8','#BCE2C2','#BDD9F6']}
 ];
 const POS=[[450,150],[750,450],[150,450],[450,750]];
+const EDGES=[
+ {id:'original',name:'原版近黑',hex:'#111111',note:'现有版本 · 对照'},
+ {id:'charcoal',name:'深灰',hex:'#2B2B2B',note:'更柔和 · 推荐试用'},
+ {id:'softgrey',name:'柔灰',hex:'#454545',note:'对比最明显'}
+];
+let selectedStroke=EDGES[1].hex;
+let activePalette=PALETTES[1];
 const $=id=>document.getElementById(id);
 const svg=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);for(const [key,val]of Object.entries(attrs))e.setAttribute(key,String(val));parent.appendChild(e);return e;};
 function piece(svgParent,fill,x,y,diameter=60){
  const group=svg('g',{transform:'translate('+x+' '+y+')'},svgParent),r=diameter/2,border=3.2,artRadius=r-4;
- svg('circle',{r:r-border/2,fill,stroke:'#111111','stroke-width':border},group);
+ svg('circle',{r:r-border/2,fill,stroke:selectedStroke,'stroke-width':border},group);
  svg('image',{href:IMAGE,x:-artRadius,y:-artRadius,width:2*artRadius,height:2*artRadius,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
 }
 function choose(palette){
+ activePalette=palette;
+ renderEdges();
  for(const el of document.querySelectorAll('[data-palette]'))el.setAttribute('aria-pressed',String(el.dataset.palette===palette.id));
  $('selectedTitle').textContent=palette.name+' · 棋盘预览';
  $('selectedText').textContent=palette.description;
@@ -75,7 +92,24 @@ function choose(palette){
  $('legend').replaceChildren();
  for(let i=0;i<4;i++){
   const el=document.createElement('span'),dot=document.createElement('i');
-  dot.style.background=palette.colors[i];el.append(dot,document.createTextNode(TEAMS[i]+' '+palette.colors[i].toUpperCase()));$('legend').append(el);
+  dot.style.background=palette.colors[i];dot.style.borderColor=selectedStroke;el.append(dot,document.createTextNode(TEAMS[i]+' '+palette.colors[i].toUpperCase()));$('legend').append(el);
+ }
+}
+function renderEdges(){
+ const root=$('edgeChoices');root.replaceChildren();
+ for(const edge of EDGES){
+  const button=document.createElement('button');button.type='button';button.className='edge-card';
+  button.setAttribute('aria-pressed',String(selectedStroke===edge.hex));
+  const sample=svg('svg',{viewBox:'-67 -42 134 84',role:'img','aria-label':edge.name+'描边的红蓝双色波波亚棋子'},button);
+  const old=selectedStroke;selectedStroke=edge.hex;
+  piece(sample,activePalette.colors[0],-33,0);
+  piece(sample,activePalette.colors[3],33,0);
+  selectedStroke=old;
+  const title=document.createElement('strong');title.textContent=edge.name+' · '+edge.hex;
+  const note=document.createElement('small');note.textContent=edge.note;
+  button.append(title,note);
+  button.onclick=()=>{selectedStroke=edge.hex;choose(activePalette);};
+  root.append(button);
  }
 }
 for(const palette of PALETTES){
