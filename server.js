@@ -421,8 +421,14 @@ function handleAction(data){
     if(r.phase!=='playing'||r.roundPhase!=='vote'||!r.vote)fail('现在无需投票');
     if(p.auto)fail('托管中的玩家不需要投票');
     if(typeof data.agree!=='boolean')fail('请选择是否继续');
-    // A disagreement only removes this participant; it never ends everyone else's match.
-    if(!data.agree)return handOverToComputer(r,p);
+    // Solo refusal settles with the current ranks; only multiplayer hands over the seat.
+    if(!data.agree){
+      if(r.mode==='solo'){
+        settleMatch(r,'玩家选择退出观战，按当前进度结算');
+        return {ok:true};
+      }
+      return handOverToComputer(r,p);
+    }
     r.vote.responses[p.color]=true;
     publish(r);finishVoteIfReady(r);
     return {ok:true};
