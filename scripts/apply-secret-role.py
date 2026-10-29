@@ -109,7 +109,7 @@ const humanRoleChoices=()=>state?.secretUnlocked&&SECRET_ROLE?[...ROLE,SECRET_RO
  }""",
         "client five clicks and role switch")
     source=once(source,
-        "  $('myToken').textContent=roleMark(self.role);",
+        " $('myToken').textContent=roleMark(self.role);",
         """  $('myToken').textContent=roleMark(self.role);
   $('myToken').style.cursor=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?'pointer':'default';
   $('myToken').setAttribute('role','button');
