@@ -191,7 +191,14 @@ const roleNames=Object.fromEntries(Object.entries(globalThis.GAME_CONTENT.charac
 const roleName=role=>roleNames[role]||'随机角色';
 // Choose one authoritative line for each collision. Newlines only format long lines.
 const COLLISION_LINES=Object.fromEntries(Object.entries(globalThis.GAME_CONTENT.characters).map(([id,data])=>[id,data.collision||[]]));
-const collisionLine = role => {const lines=COLLISION_LINES[role]||[];return lines.length?lines[rand(lines.length)]:'';};
+// Directed dialogue is selected only for roles actually knocked back to base.
+const collisionLine = (role,capturedRoles=[]) => {
+ const special=globalThis.GAME_CONTENT.characters[role]?.collisionTargets||{};
+ const target=capturedRoles.find(id=>typeof special[id]==='string'&&special[id]);
+ if(target)return special[target];
+ const lines=COLLISION_LINES[role]||[];
+ return lines.length?lines[rand(lines.length)]:'';
+};
 const startIndex = [39,26,0,13];
 // 掷出6从基地到预备区旁的起飞圈 (pos=-2)；下次掷骰时，各队斜三角格为第1格 (pos=0)。
 // 外圈增加了这块斜三角格，所以本色转弯格为 pos=49，终点道 pos=50..55 共6格。
@@ -246,7 +253,7 @@ function projection(pos,roll){
 const crossedLane = [3,2,1,0]; // 蓝飞越红、黄飞越绿、绿飞越黄、红飞越蓝
 // Landing on a stack does not destroy it until both sides have the same
 // number of pieces on that cell. A 1-v-1 encounter is an equal-count capture.
-function captureAlong(room,actor,plan,movingPieceId){
+function captureAlong(room,actor,plan,movingPieceId,capturedRoles=[]){
   let hits=0;
   const diceEnd=plan.path.findLastIndex(step=>step.kind==='骰点');
   for(let k=0;k<plan.path.length;k++){
@@ -271,12 +278,14 @@ function captureAlong(room,actor,plan,movingPieceId){
       if(landed.length&&ownAtStop===landed.length){
         for(const i of landed)enemy.pieces[i]=-1;
         hits+=landed.length;
+        capturedRoles.push(enemy.role);
       }
       // Flying across an opponent's goal lane is a separate interception.
       // One flying piece can intercept one lane piece, but not a whole stack.
       if(crossing.length===1){
         enemy.pieces[crossing[0]]=-1;
         hits++;
+        capturedRoles.push(enemy.role);
       }
     }
   }
@@ -415,8 +424,9 @@ function performMove(room,p,id){
   if(room.phase!=='playing'||room.roundPhase!=='choose'||p.color!==room.turn||!legalMove(room,p,id))fail('现在不能移动这枚棋子');
   const plan=projection(p.pieces[id],room.die);if(!plan)fail('无效移动');
   const start=p.pieces[id];p.pieces[id]=plan.to;
-  const hit=captureAlong(room,p,plan,id);
-  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die,goalOrdinal:plan.to===GOAL?p.pieces.filter(v=>v===GOAL).length:null,dialogue:hit?collisionLine(p.role):''};
+  const capturedRoles=[];
+  const hit=captureAlong(room,p,plan,id,capturedRoles);
+  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die,goalOrdinal:plan.to===GOAL?p.pieces.filter(v=>v===GOAL).length:null,dialogue:hit?collisionLine(p.role,capturedRoles):''};
   room.roundPhase='moving';room.options=[];
   room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
   if(p.pieces.every(v=>v===GOAL)&&!p.finished){p.finished=true;room.finishOrder.push(p.color);}
