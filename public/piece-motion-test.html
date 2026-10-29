@@ -30,7 +30,7 @@ input[type=range]{width:100%;accent-color:#587fa8;margin:8px 0 12px}
 <body><main>
 <a href="/">‹ 返回游戏</a>　<a href="/piece-preview.html">查看原有棋子试装</a>
 <h1>全角色 · 棋子移动放大测试</h1>
-<p>全部八名角色都采用同一套走棋尺寸：静止 60，移动 85，落地恢复 60。没有插图的角色暂时以原本的文字棋子演示；波波亚继续使用你的原始 PNG。</p><div class="row"><label for="role">测试角色</label><select id="role"><option value="A">青栖禾</option><option value="B">澄</option><option value="C">勒尔斯</option><option value="D">麦冬</option><option value="E" selected>波波亚</option><option value="F">麻特</option><option value="G">塔努利安</option><option value="H">亚洛</option></select></div>
+<p>全部八名角色都采用同一套走棋尺寸：静止 60，移动 85，落地恢复 60。棋子底盘使用柔和淡彩，描边使用各自同色系深色；无立绘的角色仍保留文字棋子，波波亚原图不变。</p><div class="row"><label for="role">测试角色</label><select id="role"><option value="A">青栖禾</option><option value="B">澄</option><option value="C">勒尔斯</option><option value="D">麦冬</option><option value="E" selected>波波亚</option><option value="F">麻特</option><option value="G">塔努利安</option><option value="H">亚洛</option></select></div>
 <div class="samples">
 <div class="sample"><svg id="restSample" viewBox="-55 -55 110 110"></svg><div><strong>静止状态</strong><small>60 单位</small></div></div>
 <div class="sample"><svg id="moveSample" viewBox="-55 -55 110 110"></svg><div><strong>移动状态</strong><small id="moveLabel">85 单位</small></div></div>
@@ -55,7 +55,9 @@ input[type=range]{width:100%;accent-color:#587fa8;margin:8px 0 12px}
 <script>
 'use strict';
 const NS='http://www.w3.org/2000/svg', IMAGE='/assets/popoya-original.png?v=popoya-7b365e61961d';
-const COLORS={red:'#ef5350',yellow:'#f6c945',green:'#58c26a',blue:'#41a7f5'};
+const COLORS={red:'#F2A7A7',yellow:'#F4DEA0',green:'#A9D8B0',blue:'#A9CFF3'};
+const EDGES={red:'#9B4D59',yellow:'#896424',green:'#417954',blue:'#416F9C'};
+const EDGE_BY_BASE=Object.fromEntries(Object.keys(COLORS).map(k=>[COLORS[k].toLowerCase(),EDGES[k]]));
 const MARKS={A:'禾',B:'澄',C:'勒',D:'麦',F:'麻',G:'塔',H:'亚'};
 const PATH=[[608,92],[625,150],[625,200],[608,258],[642,292],[700,275],[750,275],[808,292]];
 const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -68,10 +70,10 @@ function drawToken(parent,diameter,hex){
  const g=svg('g',{},parent),radius=diameter/2,ratio=diameter/60,role=$('role').value;
  if(role==='E'){
   const border=3.2*ratio,artRadius=26*ratio;
-  svg('circle',{r:radius-border/2,fill:hex,stroke:'#111','stroke-width':border},g);
+  svg('circle',{r:radius-border/2,fill:hex,stroke:EDGE_BY_BASE[hex.toLowerCase()],'stroke-width':border},g);
   svg('image',{href:IMAGE,x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},g);
  }else{
-  svg('circle',{r:radius,fill:'#fff',stroke:hex,'stroke-width':5*ratio},g);
+  svg('circle',{r:radius,fill:hex,stroke:EDGE_BY_BASE[hex.toLowerCase()],'stroke-width':5*ratio},g);
   const text=svg('text',{x:0,y:1*ratio,'text-anchor':'middle','dominant-baseline':'central','font-size':22*ratio,fill:'#272a30'},g);
   text.textContent=MARKS[role]||'?';
  }
