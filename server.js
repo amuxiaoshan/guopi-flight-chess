@@ -99,7 +99,7 @@ function projection(pos,roll){
 const crossedLane = [3,2,1,0]; // 蓝飞越红、黄飞越绿、绿飞越黄、红飞越蓝
 // Landing on a stack does not destroy it until both sides have the same
 // number of pieces on that cell. A 1-v-1 encounter is an equal-count capture.
-function captureAlong(room,actor,plan,movingPieceId,capturedRoles=[]){
+function captureAlong(room,actor,plan,movingPieceId,capturedRoles=[],captures=[]){
   let hits=0;
   const diceEnd=plan.path.findLastIndex(step=>step.kind==='骰点');
   for(let k=0;k<plan.path.length;k++){
@@ -122,14 +122,19 @@ function captureAlong(room,actor,plan,movingPieceId,capturedRoles=[]){
       }
       // Normal co-location: 1 vs 2 coexists, 2 vs 2 captures both.
       if(landed.length&&ownAtStop===landed.length){
-        for(const i of landed)enemy.pieces[i]=-1;
+        for(const i of landed){
+          captures.push({color:enemy.color,piece:i,from:enemy.pieces[i],step:k});
+          enemy.pieces[i]=-1;
+        }
         hits+=landed.length;
         capturedRoles.push(enemy.role);
       }
       // Flying across an opponent's goal lane is a separate interception.
       // One flying piece can intercept one lane piece, but not a whole stack.
       if(crossing.length===1){
-        enemy.pieces[crossing[0]]=-1;
+        const i=crossing[0];
+        captures.push({color:enemy.color,piece:i,from:enemy.pieces[i],step:k});
+        enemy.pieces[i]=-1;
         hits++;
         capturedRoles.push(enemy.role);
       }
@@ -303,9 +308,9 @@ function performMove(room,p,id){
   if(room.phase!=='playing'||room.roundPhase!=='choose'||p.color!==room.turn||!legalMove(room,p,id))fail('现在不能移动这枚棋子');
   const plan=projection(p.pieces[id],room.die);if(!plan)fail('无效移动');
   const start=p.pieces[id];p.pieces[id]=plan.to;
-  const capturedRoles=[];
-  const hit=captureAlong(room,p,plan,id,capturedRoles);
-  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,die:room.die,goalOrdinal:plan.to===GOAL?p.pieces.filter(v=>v===GOAL).length:null,dialogue:hit?collisionLine(p.role,capturedRoles):''};
+  const capturedRoles=[],captures=[];
+  const hit=captureAlong(room,p,plan,id,capturedRoles,captures);
+  room.lastMove={seq:room.seq+1,color:p.color,piece:id,start,path:plan.path,flags:plan.flags,hit,captures,die:room.die,goalOrdinal:plan.to===GOAL?p.pieces.filter(v=>v===GOAL).length:null,dialogue:hit?collisionLine(p.role,capturedRoles):''};
   room.roundPhase='moving';room.options=[];
   room.note=hit?`${roleName(p.role)} 撞回 ${hit} 枚棋子`:plan.to===GOAL?`${roleName(p.role)} 到达终点`:plan.flags.join('、')||`${roleName(p.role)} 前进 ${room.die} 格`;
   if(p.pieces.every(v=>v===GOAL)&&!p.finished){p.finished=true;room.finishOrder.push(p.color);}
