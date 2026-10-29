@@ -95,7 +95,7 @@
       ],
       "secret": true,
       "humanOnly": true,
-      "artOffsetY": 4
+      "artOffsetY": 2
     }
   },
   "teams": [
