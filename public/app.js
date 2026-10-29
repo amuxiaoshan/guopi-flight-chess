@@ -515,7 +515,9 @@ function drawPieces(){
  let movingNode=null;
  const restSize=PIECE_REST_DIAMETER;
  for(const p of state.players)for(let id=0;id<4;id++){
-  const pos=piecePosition(p,id);if(pos===GOAL)continue;
+  const pos=piecePosition(p,id);
+  const passingThroughGoal=animPiece?.color===p.color&&animPiece?.id===id;
+  if(pos===GOAL&&!passingThroughGoal)continue;
   const [x,y]=point(p.color,pos,id),key=`${x},${y}`;
   if(!packs.has(key))packs.set(key,[]);
   packs.get(key).push({p,id,pos,x,y});
