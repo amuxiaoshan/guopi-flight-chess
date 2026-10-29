@@ -10,6 +10,7 @@ on:
       - 'tests/content-pack.test.js'
       - 'tests/oc-art-preview.test.js'
       - 'tests/tanulian-art.test.js'
+      - 'tests/targeted-collision.test.js'
       - 'tests/goal-pass-through.test.js'
       - 'tests/piece-palette.test.js'
       - 'tests/same-color-hop.test.js'
@@ -78,6 +79,7 @@ jobs:
           node tests/secret-role.test.js
           node tests/oc-art-preview.test.js
           node tests/tanulian-art.test.js
+          node tests/targeted-collision.test.js
           node tests/same-color-hop.test.js
           node tests/exit-mode-copy.test.js
       - name: Verify content pack idempotence
