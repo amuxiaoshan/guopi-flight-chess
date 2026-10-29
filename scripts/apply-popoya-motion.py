@@ -28,7 +28,17 @@ for name in ("app.js", "single.html"):
         print(name + ": fixed animation group initialization")
         continue
     if "const POPOYA_REST_DIAMETER=60;" in src:
-        print(name + " already updated")
+        start = src.index("  if(p.role==='E'){", src.index("function drawPieces(){"))
+        end = src.index("  }else{", start)
+        block = src[start:end]
+        old_image_parent = "'pointer-events':'none'},group);"
+        if old_image_parent in block:
+            block = block.replace(old_image_parent, "'pointer-events':'none'},sprite);", 1)
+            src = src[:start] + block + src[end:]
+            path.write_text(src, encoding="utf-8")
+            print(name + ": fixed artwork to scale with colored base")
+        else:
+            print(name + ": already fully updated")
         continue
     start = src.index(original_start)
     stop = src.index("function drawPieces(){", start)
