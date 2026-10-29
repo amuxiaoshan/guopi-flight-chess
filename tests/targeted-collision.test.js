@@ -32,7 +32,7 @@ function engine(filename){
  const context={
   GAME_CONTENT:pack,globalThis:{GAME_CONTENT:pack},
   rand:()=>0,startIndex:[39,26,0,13],
-  RING_SIZE:52,LANE:50,crossedLane:[3,2,1,0]
+  RING_SIZE:52,LANE:50,GOAL:55,crossedLane:[3,2,1,0]
  };
  const core=vm.runInNewContext(logic+'\n({collisionLine,captureAlong})',context);
  assert.ok(src.includes('const capturedRoles=[];'),'target capture tracking missing: '+filename);
