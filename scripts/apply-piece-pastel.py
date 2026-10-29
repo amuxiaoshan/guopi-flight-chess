@@ -25,8 +25,8 @@ def once(source, old, new, context):
 for name in ("app.js","single.html"):
     file=ROOT/"public"/name
     source=file.read_text(encoding="utf-8")
-    if "const PIECE_COLORS=[" in source:
-        print(name+": palette already applied")
+    if "const PIECE_COLORS=[" in source or "const PIECE_COLORS=GAME_CONTENT.teams.map(" in source:
+        print(name+": palette already supplied by game or active content pack")
         continue
     source=once(source,"const PIECE_MOVE_DIAMETER=85;\n","const PIECE_MOVE_DIAMETER=85;\n"+PALETTE,name+" palette config")
     before,after=source.split("function drawPieces(){",1)
