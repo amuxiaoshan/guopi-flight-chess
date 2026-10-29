@@ -5,6 +5,7 @@ on:
     paths:
       - 'content/**'
       - 'scripts/build-content-pack.py'
+      - 'tests/content-pack.test.js'
       - '.github/workflows/build-content-pack.yml'
   workflow_dispatch:
     inputs:
@@ -59,6 +60,7 @@ jobs:
         run: |
           node tests/goal-pass-through.test.js
           node tests/piece-palette.test.js
+          node tests/content-pack.test.js
       - name: Verify content pack idempotence
         run: |
           python3 scripts/build-content-pack.py
