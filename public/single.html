@@ -106,7 +106,7 @@ input,select{font-size:16px}
 
 /* Original OC art in role picker and room avatars; image bytes are not modified. */
 .largeToken,.tiny{overflow:hidden}
-.largeToken .role-art,.tiny .role-art{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+.largeToken .role-art,.tiny .role-art{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none;transform:translateY(var(--art-offset-y,0%))}
 .largeToken{padding:3px}
 .tiny{padding:1px;background:var(--piece-base,#fff);border-color:var(--piece-edge,var(--color,#999))}
 
