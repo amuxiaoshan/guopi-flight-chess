@@ -1474,13 +1474,16 @@ const stepScenarios=[
  {name:'同格双枚 · 2 对 2',color:3,enemyColor:0,start:10,die:2,enemy:[38,38,-1,-1],own:[12,-1,-1]},
  {name:'跳格落地踩棋 · 蓝方踩红方',color:0,enemyColor:3,start:3,die:2,enemy:[35,-1,-1,-1],own:[-1,-1,-1]},
  {name:'跳格前后连续踩棋',color:3,enemyColor:0,start:10,die:3,enemy:[39,43,-1,-1],own:[-1,-1,-1]},
- {name:'飞棋掠过终点道踩棋',color:0,enemyColor:3,start:14,die:3,enemy:[52,-1,-1,-1],own:[-1,-1,-1]}
+ {name:'飞棋掠过终点道踩棋',color:0,enemyColor:3,start:14,die:3,enemy:[52,-1,-1,-1],own:[-1,-1,-1]},
+ {name:'终点外圈最后一格 · 不跳（关键回归）',color:3,enemyColor:0,start:48,die:1,enemy:[-1,-1,-1,-1],own:[-1,-1,-1],testFinish:true,expectTo:49,expectJump:false},
+ {name:'终点道入口 · 正常进道不跳',color:3,enemyColor:0,start:49,die:1,enemy:[-1,-1,-1,-1],own:[-1,-1,-1],testFinish:true,expectTo:50,expectJump:false},
+ {name:'此前正常的同色跳格仍有效',color:3,enemyColor:0,start:44,die:1,enemy:[-1,-1,-1,-1],own:[-1,-1,-1],testFinish:true,expectTo:49,expectJump:true}
 ];
 let stepTestRunning=false,stepTestSerial=0,stepVictimStartCount=0;
 const testPanel=document.createElement('section');
 testPanel.id='stepTestPanel';
-testPanel.innerHTML='<div style="font-weight:700;font-size:15px">实机踩棋测试 · 正式棋盘与棋子</div>'+
- '<p style="font-size:12px;line-height:1.6;color:#677181;margin:7px 0">使用本游戏离线版原本的行棋判定、踩棋判定、棋子美术和走棋动画。测试不会进入联机房间。</p>'+
+testPanel.innerHTML='<div style="font-weight:700;font-size:15px">实机踩棋与终点道测试 · 正式棋盘与棋子</div>'+
+ '<p style="font-size:12px;line-height:1.6;color:#677181;margin:7px 0">使用正式离线版行棋、踩棋判定和原版棋盘棋子。新增终点前最后一格防跳格测试，不进入联机房间。</p>'+
  '<select id="stepScene" aria-label="选择踩棋场景"></select>'+
  '<div style="display:flex;gap:8px;margin-top:9px"><button id="stepGo" type="button">固定骰点 · 开始踩棋</button><button id="stepReset" type="button">重新摆棋</button></div>'+
  '<div id="stepMessage" role="status" aria-live="polite" style="font-size:12px;min-height:24px;margin:9px 0 0;color:#44617c">准备测试</div>';
@@ -1507,8 +1510,8 @@ function stepPrepare(){
  placeCube(x.die);$('diceStatus').textContent='固定 '+x.die+' 点';
  $('roll').disabled=false;
  const button=testPanel.querySelector('#stepGo');
- button.disabled=false;button.textContent='掷出 '+x.die+' 点 · 踩棋';
- stepMsg.textContent='已摆好实机棋子。先看被踩棋子的位置，再点「踩棋」。';
+ button.disabled=false;button.textContent='掷出 '+x.die+' 点 · '+(x.testFinish?'走棋':'踩棋');
+ stepMsg.textContent=x.testFinish?'已摆好实机棋子，点击走棋。终点前不会误触发跳格。':'已摆好实机棋子。先看被踩棋子的位置，再点「踩棋」。';
  stepVictimStartCount=x.enemy.filter(v=>v>=0).length;
 }
 async function stepRun(){
@@ -1521,16 +1524,19 @@ async function stepRun(){
  const start=actor.pieces[0],captures=[],roles=[];
  actor.pieces[0]=plan.to;
  const hit=StepTestEngine.captureAlong(state,actor,plan,0,roles,captures);
- if(!hit){stepTestRunning=false;stepMsg.textContent='本场景没有踩棋，测试布局需要检查';return;}
- state.roundPhase='moving';state.note='正在进行踩棋';
+ if(!hit&&!x.testFinish){stepTestRunning=false;stepMsg.textContent='本场景没有踩棋，测试布局需要检查';return;}
+ state.roundPhase='moving';state.note=x.testFinish?'正在通过终点前的外圈与终点道':'正在进行踩棋';
  const button=testPanel.querySelector('#stepGo');
  button.disabled=true;$('roll').disabled=true;
- stepMsg.textContent='正在逐格走棋，留意目标：被踩前必须停在原位。';
+ stepMsg.textContent=x.testFinish?'正在按实机规则走棋，检查是否出现错误跳格。':'正在逐格走棋，留意目标：被踩前必须停在原位。';
  const move={color:x.color,piece:0,start,path:plan.path,flags:plan.flags,hit,
    captures,die:x.die,dialogue:'',goalOrdinal:null};
  await animateMove(move);
  if(mySerial!==stepTestSerial)return;
- stepMsg.textContent='已踩回 '+hit+' 枚棋子。可以「重新摆棋」或切换场景。';
+ if(x.testFinish){const actualJump=plan.flags.includes('跳格')||plan.flags.includes('飞跃');
+  const pass=plan.to===x.expectTo&&actualJump===x.expectJump;
+  stepMsg.textContent=(pass?'通过：':'失败：')+'最终位置 '+plan.to+'；'+(actualJump?'触发跳格':'没有跳格')+'。预期位置 '+x.expectTo+'，'+(x.expectJump?'应该跳格。':'不应跳格。');
+ }else stepMsg.textContent='已踩回 '+hit+' 枚棋子。可以「重新摆棋」或切换场景。';
  button.textContent='本轮已完成';stepTestRunning=false;
 }
 testSelect.onchange=stepPrepare;
