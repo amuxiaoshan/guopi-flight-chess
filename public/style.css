@@ -106,3 +106,10 @@ input,select{font-size:16px}
   box-shadow:0 4px 16px #637a9815;animation:secretHintAppear .2s ease-out;}
 .secretHint[hidden]{display:none!important}
 @keyframes secretHintAppear{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+
+
+/* Original OC art in role picker and room avatars; image bytes are not modified. */
+.largeToken,.tiny{overflow:hidden}
+.largeToken .role-art,.tiny .role-art{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+.largeToken{padding:3px}
+.tiny{padding:1px;background:var(--piece-base,#fff);border-color:var(--piece-edge,var(--color,#999))}
