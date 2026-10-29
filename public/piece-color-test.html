@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>适得棋所 · 棋子淡彩配色对比</title>
+<style>
+*{box-sizing:border-box}
+:root{color-scheme:light;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#303640;background:#f6f7f9}
+body{margin:0;padding:20px 12px 50px}
+main{width:min(100%,740px);margin:auto}
+header{margin-bottom:14px}
+a{font-size:13px;color:#54799e;text-decoration:none}
+h1{font-size:24px;margin:13px 0 5px;font-weight:700;letter-spacing:.015em}
+p{font-size:13px;line-height:1.75;color:#65717c;margin:5px 0 12px}
+h2{font-size:16px;margin:0 0 6px}
+.sub{font-size:12px;color:#77818f}
+.compare{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:16px 0 20px}
+.card{background:white;border:2px solid #e7eaf0;border-radius:16px;padding:11px 8px 12px;cursor:pointer;text-align:left;font:inherit;color:inherit;min-width:0;transition:border-color .15s,box-shadow .15s}
+.card[aria-pressed=true]{border-color:#7a9bc1;box-shadow:0 4px 15px #6b8fb826}
+.card strong{font-size:14px;display:block;margin:1px 3px 5px}
+.card small{font-size:11px;color:#697682;display:block;margin:1px 3px}
+.card .tokens{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:11px 0 9px}
+.token{display:grid;justify-items:center;gap:3px;min-width:0}
+.token svg{width:100%;max-width:100px;aspect-ratio:1;overflow:visible}
+.token span{font-size:10px;color:#626e79;font-variant-numeric:tabular-nums;white-space:nowrap}
+.board-panel{padding:16px;background:white;border:1px solid #e7eaf0;border-radius:18px}
+.board-panel .board{aspect-ratio:1;position:relative;margin:12px auto 0;border-radius:12px;overflow:hidden;background:#fafbfc}
+.board img,.board svg{position:absolute;inset:0;width:100%;height:100%}
+.board svg{overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:9px 15px;margin-top:12px;font-size:12px;color:#5e6a78}
+.legend i{width:12px;height:12px;border-radius:50%;display:inline-block;vertical-align:-2px;margin-right:4px;border:1px solid #373a3f}
+.note{background:#fff;border:1px solid #e9edf2;border-radius:12px;padding:10px 13px;margin-top:14px;font-size:12px;color:#707987;line-height:1.8}
+@media(max-width:630px){.compare{grid-template-columns:1fr}.card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:0 10px;align-items:center}.card strong,.card small{grid-column:1}.card .tokens{grid-column:2;grid-row:1/4;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin:0}.token svg{max-width:72px}.token span{font-size:9px}.board-panel{padding:12px}}
+</style>
+</head>
+<body>
+<main>
+<header><a href="/">‹ 返回正式游戏</a>　<a href="/piece-motion-test.html">动态走棋测试</a></header>
+<h1>棋子颜色 · 三组对比</h1>
+<p>同一张波波亚原始 PNG、同样的 60 单位棋子和细黑边，只更换棋子阵营色底盘。选择一组，就能看它放在真实棋盘上的效果。<strong>这只是试色，不会改变正式游戏配色。</strong></p>
+<section class="compare" id="choices" aria-label="三套棋子色卡"></section>
+<section class="board-panel">
+<h2 id="selectedTitle">柔和淡彩 · 棋盘预览</h2>
+<div class="sub" id="selectedText">饱和度适中，颜色更柔和，仍能区分四方。</div>
+<div class="board"><img src="/board.svg" alt="正式游戏棋盘"><svg id="boardPieces" viewBox="0 0 900 900" role="img" aria-label="选中配色在棋盘上的实际比例"></svg></div>
+<div id="legend" class="legend"></div>
+</section>
+<div class="note">原始插图不调色、不加滤镜，不改白边或透明度。彩色圆底的黑边维持 3.2 单位。这里是静止状态的 60 单位；游戏里移动仍放大到 85 单位。最终选哪一组，由你决定。</div>
+</main>
+<script>
+'use strict';
+const NS='http://www.w3.org/2000/svg';
+const IMAGE='/assets/popoya-original.png?v=popoya-7b365e61961d';
+const TEAMS=['红','黄','绿','蓝'];
+const PALETTES=[
+ {id:'current',name:'原版高饱和',note:'现有阵营底色 · 对照组',description:'色彩明亮，存在感较强。',colors:['#ef5350','#f6c945','#58c26a','#41a7f5']},
+ {id:'soft',name:'柔和淡彩',note:'推荐先看这一组',description:'颜色柔和，但红黄绿蓝依然比较清楚。',colors:['#F2A7A7','#F4DEA0','#A9D8B0','#A9CFF3']},
+ {id:'milky',name:'奶雾浅彩',note:'更浅、更轻',description:'接近奶油色系，角色图片更突出。',colors:['#F6BABA','#F7E7B8','#BCE2C2','#BDD9F6']}
+];
+const POS=[[450,150],[750,450],[150,450],[450,750]];
+const $=id=>document.getElementById(id);
+const svg=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);for(const [key,val]of Object.entries(attrs))e.setAttribute(key,String(val));parent.appendChild(e);return e;};
+function piece(svgParent,fill,x,y,diameter=60){
+ const group=svg('g',{transform:'translate('+x+' '+y+')'},svgParent),r=diameter/2,border=3.2,artRadius=r-4;
+ svg('circle',{r:r-border/2,fill,stroke:'#111111','stroke-width':border},group);
+ svg('image',{href:IMAGE,x:-artRadius,y:-artRadius,width:2*artRadius,height:2*artRadius,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
+}
+function choose(palette){
+ for(const el of document.querySelectorAll('[data-palette]'))el.setAttribute('aria-pressed',String(el.dataset.palette===palette.id));
+ $('selectedTitle').textContent=palette.name+' · 棋盘预览';
+ $('selectedText').textContent=palette.description;
+ const board=$('boardPieces');board.replaceChildren();
+ for(let i=0;i<4;i++)piece(board,palette.colors[i],POS[i][0],POS[i][1]);
+ $('legend').replaceChildren();
+ for(let i=0;i<4;i++){
+  const el=document.createElement('span'),dot=document.createElement('i');
+  dot.style.background=palette.colors[i];el.append(dot,document.createTextNode(TEAMS[i]+' '+palette.colors[i].toUpperCase()));$('legend').append(el);
+ }
+}
+for(const palette of PALETTES){
+ const card=document.createElement('button');card.type='button';card.className='card';card.dataset.palette=palette.id;
+ const heading=document.createElement('strong');heading.textContent=palette.name;
+ const note=document.createElement('small');note.textContent=palette.note;
+ const samples=document.createElement('div');samples.className='tokens';
+ for(let i=0;i<4;i++){
+  const block=document.createElement('div');block.className='token';
+  const pic=svg('svg',{viewBox:'-42 -42 84 84',role:'img','aria-label':TEAMS[i]+'色棋子'},block);
+  piece(pic,palette.colors[i],0,0);
+  const code=document.createElement('span');code.textContent=palette.colors[i].toUpperCase();block.appendChild(code);samples.appendChild(block);
+ }
+ card.append(heading,note,samples);
+ card.onclick=()=>choose(palette);
+ $('choices').append(card);
+}
+choose(PALETTES[1]);
+</script>
+</body>
+</html>
