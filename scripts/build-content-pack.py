@@ -61,6 +61,9 @@ def validate(pack,id):
             for target,line in special.items()
         ):
             raise ValueError("Invalid target-specific collision lines")
+        self_line=c.get("collisionSelf")
+        if self_line is not None and (not isinstance(self_line,str) or not self_line.strip()):
+            raise ValueError("Invalid self-role collision line")
     for t in pack["teams"]:
         for field in ("base","edge","ui"):
             if not re.fullmatch(r"#[0-9a-fA-F]{6}",t[field]):raise ValueError("Bad color "+field)
