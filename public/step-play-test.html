@@ -1064,6 +1064,13 @@ function showRankDetails(){
 function receive(next){
  if(next.seq<=lastSequence)return;
  const first=lastSequence<0;
+ const newRoll=!first&&next.lastRoll?.seq!==undefined&&next.lastRoll.seq!==lastRollSeq;
+ // Server state already contains home positions. Display the saved originals
+ // until the third 6 has finished spinning, then reuse the normal 190ms return.
+ if(newRoll&&next.lastRoll.returns?.length){
+  clearCaptureFlights();
+  captureFlights=next.lastRoll.returns.map(c=>({...c,step:-1,phase:'waiting',animation:null}));
+ }
  state=next;lastSequence=next.seq;
  if(first){roleIndex=Math.max(0,humanRoleChoices().indexOf(me()?.role??'?'));}
  if(next.phase==='lobby'){syncVotePrompt();screen('lobby');renderLobby();prepareLanAddresses();return;}
@@ -1075,7 +1082,17 @@ function receive(next){
    $('restart').disabled=!next.host;
    $('resultNote').hidden=next.host;
  }
- if(!first&&next.lastRoll?.seq!==undefined&&next.lastRoll.seq!==lastRollSeq){lastRollSeq=next.lastRoll.seq;animateRoll(next.lastRoll.value);}
+ if(newRoll){
+  lastRollSeq=next.lastRoll.seq;
+  const penaltyRollSeq=lastRollSeq,penaltyAnimationSerial=animationSerial;
+  void animateRoll(next.lastRoll.value).then(async()=>{
+   if(!captureFlights.some(f=>f.step===-1&&f.phase==='waiting'))return;
+   // Reveal the third six first, then fly all penalized planes home together.
+   await sleep(90);
+   if(lastRollSeq!==penaltyRollSeq||animationSerial!==penaltyAnimationSerial)return;
+   launchCaptureStep(-1,penaltyAnimationSerial);
+  }).catch(err=>console.error('第三次六点返航动画未完成',err));
+ }
  else if(first&&next.lastRoll){lastRollSeq=next.lastRoll.seq;placeCube(next.lastRoll.value);}
  if(!first&&next.lastMove?.seq!==undefined&&next.lastMove.seq!==lastMoveSeq){lastMoveSeq=next.lastMove.seq;animateMove(next.lastMove);}
  else if(first&&next.lastMove){lastMoveSeq=next.lastMove.seq;}
