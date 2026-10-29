@@ -62,6 +62,13 @@ def validate(pack,id):
 def render_pack(raw,id,offline):
     built=copy.deepcopy(raw)
     pack_folder=CONTENT/"packs"/id
+    # A pending original is kept in source control as a path hint; when the
+    # exact user-uploaded asset is committed, the next build adopts it.
+    for ch in built["characters"].values():
+        pending=ch.get("pieceImagePending")
+        if pending and isinstance(pending,str) and (pack_folder/pending).is_file():
+            ch["pieceImage"]=pending
+        ch.pop("pieceImagePending",None)
     asset_paths=[]
     for cid,ch in built["characters"].items():
         if ch.get("pieceImage"):
