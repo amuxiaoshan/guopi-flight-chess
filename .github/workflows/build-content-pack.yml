@@ -9,6 +9,8 @@ on:
       - 'tests/secret-role.test.js'
       - 'tests/content-pack.test.js'
       - 'tests/oc-art-preview.test.js'
+      - 'tests/goal-pass-through.test.js'
+      - 'tests/piece-palette.test.js'
       - 'tests/same-color-hop.test.js'
       - 'tests/exit-mode-copy.test.js'
       - 'server.js'
