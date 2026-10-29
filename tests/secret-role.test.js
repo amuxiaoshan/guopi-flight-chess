@@ -32,7 +32,7 @@ for(const [name,content] of [['online',online],['offline',offline]]){
  assert.match(content,/const humanRoleChoices=.*secretUnlocked/,name+': only unlocked humans see secret');
  assert.match(content,/\$\('myToken'\)\.addEventListener\('click',tapSecretQuestion\)/,name+': missing question mark click');
  assert.match(content,/\$\('botEditors'\)\.innerHTML[\s\S]*?\$\{ROLE\.map/,name+': bot options must use standard roles only');
- assert.match(content,/id="secretHint"[^>]+hidden>Give me five！/,name+': popup missing');
+ assert.match(name==='online'?index:offline,/id="secretHint"[^>]+hidden>Give me five！/,name+': popup missing');
 }
 assert.match(style,/\.secretHint\{/);
 
