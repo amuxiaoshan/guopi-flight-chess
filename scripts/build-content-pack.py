@@ -238,11 +238,11 @@ def generate():
     if not ALLOWED.fullmatch(id):raise ValueError("Unsafe active pack id")
     raw=json.loads((CONTENT/"packs"/id/"pack.json").read_text(encoding="utf-8"))
     validate(raw,id)
-    # Keep the original source PNG mirrored into its own independent content pack.
+    # Seed the original PNG only once; subsequent content-pack artwork edits are not overwritten.
     if id=="oc":
         original=PUBLIC/"assets"/"popoya-original.png"
         bundled=CONTENT/"packs"/id/"assets"/"popoya-original.png"
-        if original.exists() and (not bundled.exists() or bundled.read_bytes()!=original.read_bytes()):
+        if original.exists() and not bundled.exists():
             bundled.parent.mkdir(parents=True,exist_ok=True)
             shutil.copyfile(original,bundled)
             print("mirrored original PNG bytes to content pack")
