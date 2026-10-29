@@ -762,7 +762,7 @@ function rules(){
  const solo='单人游戏由电脑按设置自动参赛。第一名产生后，可以选择继续观看剩余比赛；也可以退出并结束本局。已完成的玩家观战。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。';
  const multiplayer='真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。房主离开三分钟后按真人原始入房顺序移交，期间回来保留房主身份。';
  const specific=isSoloMode()?solo:(state?.mode==='online'||myRoomMode==='online'?multiplayer:'');
- dialog('游戏说明',basics+(specific?'\\n\\n'+specific:''));
+ dialog('游戏说明',basics+(specific?'\n\n'+specific:''));
 }
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
 initDice();placeCube(1);
