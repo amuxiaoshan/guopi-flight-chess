@@ -22,6 +22,18 @@ def once(src, old, new, what):
 for name in ("app.js","single.html"):
     path=ROOT/"public"/name
     src=path.read_text(encoding="utf-8")
+    # A move can pass through GOAL=55 and then rebound. Hide a piece at 55
+    # only when it is no longer the one with an active movement animation.
+    old_skip="  const pos=piecePosition(p,id);if(pos===GOAL)continue;"
+    new_skip="""  const pos=piecePosition(p,id);
+  const passingThroughGoal=animPiece?.color===p.color&&animPiece?.id===id;
+  if(pos===GOAL&&!passingThroughGoal)continue;"""
+    if old_skip in src:
+        src=once(src,old_skip,new_skip,name+" goal crossing")
+        path.write_text(src,encoding="utf-8")
+        print(name+": show moving piece while passing goal 55; only hide on confirmed completion")
+    elif new_skip not in src:
+        raise RuntimeError(name+": goal visibility guard missing")
     if "const PIECE_REST_DIAMETER=60;" in src:
         print(name+": already converted")
         continue
