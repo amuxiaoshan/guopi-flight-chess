@@ -44,6 +44,7 @@ function drawFrom(filename,role,storedPos,animatedPos){
    piecePosition:(p,id)=>(context.animPiece?.color===p.color&&context.animPiece?.id===id)?context.animPiece.pos:p.pieces[id],
    point:(color,pos,id)=>[450,350+pos],
    roleMark:()=>role,
+   roleArtOffsetY:role=>Number(pack.characters[role]?.artOffsetY)||0,
    PIECE_REST_DIAMETER:60,PIECE_MOVE_DIAMETER:85,
    PIECE_COLORS:pack.teams.map(t=>({base:t.base,edge:t.edge})),
    ROLE_INFO:pack.characters,
