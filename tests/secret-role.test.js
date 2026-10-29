@@ -31,7 +31,16 @@ for(const [name,content] of [['online',online],['offline',offline]]){
  assert.match(content,/me\(\)\?\.role!=='\?'/,name+': must tap while random role selected');
  assert.match(content,/playToggleClick\(\);[\s\S]*?action\(\{type:'unlock-secret'\}\)/,name+': reuse sound toggle effect');
  assert.match(content,/const humanRoleChoices=.*secretUnlocked/,name+': only unlocked humans see secret');
- assert.match(content,/\$\('myToken'\)\.addEventListener\('click',tapSecretQuestion\)/,name+': missing question mark click');
+ assert.match(content,/class="secret-question-hit" aria-label="点击问号五次解锁彩蛋"/,name+': question mark should have a narrow touch target');
+ assert.match(content,/event\.target\.closest\('\.secret-question-hit'\)/,name+': only clicks on ? may count');
+ assert.match(content,/\$\('myToken'\)\.addEventListener\('click',event=>/,name+': secret click delegation missing');
+ assert.doesNotMatch(content,/\$\('myToken'\)\.addEventListener\('click',tapSecretQuestion\)/,name+': entire avatar must not be clickable');
+ assert.doesNotMatch(content,/\$\('myToken'\)\.setAttribute\('role','button'\)/,name+': entire avatar must not be keyboard focus target');
+ const css=name==='online'?style:content.slice(0,content.indexOf('</style>'));
+ assert.match(css,/#myToken\s+\.secret-question-hit\{/);
+ assert.match(css,/-webkit-tap-highlight-color:transparent/,name+': prevent mobile blue tap rectangles');
+ assert.match(css,/-webkit-user-select:none/,name+': prevent repeated-touch text selection');
+ assert.match(css,/\.secret-question-hit:focus-visible\{/);
  assert.match(content,/\$\('botEditors'\)\.innerHTML[\s\S]*?\$\{ROLE\.map/,name+': bot options must use standard roles only');
  assert.match(name==='online'?index:offline,/id="secretHint"[^>]+hidden>Give me five！/,name+': popup missing');
 }
