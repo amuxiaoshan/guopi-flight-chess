@@ -32,7 +32,8 @@ for(const [filename,source] of [['online',online],['offline',offline]]){
  assert.ok(source.includes("('myToken').style.backgroundColor=GAME_CONTENT.teams[self.color].base"),filename+': picker needs matching team base');
  assert.equal((source.match(/\$\{roleTokenMarkup\(p\.role\)\}/g)||[]).length,filename==='online'?3:2,filename+': lobby and every in-game avatar, including host transfer');
  assert.ok(source.includes("svg('image',{href:ROLE_INFO[p.role].pieceImage"),filename+': board must render the same PNG');
- assert.ok(source.includes("('myToken').addEventListener('click',tapSecretQuestion)"),filename+': five-tap easter egg must survive');
+ assert.ok(source.includes("('myToken').addEventListener('click',event=>"),filename+': five-tap event handler must survive');
+ assert.ok(source.includes("event.target.closest('.secret-question-hit')"),filename+': five-tap must be limited to the glyph');
  assert.ok(source.includes("const roleTokenStyle=color=>"),filename+': shared same-color outline style');
  const helperStart=source.indexOf("const roleTokenMarkup=role=>");
  const helperEnd=source.indexOf("const COLOR=[",helperStart);
