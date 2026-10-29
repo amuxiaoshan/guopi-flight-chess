@@ -73,7 +73,7 @@ const humanRoleChoices=()=>state?.secretUnlocked&&SECRET_ROLE?[...ROLE,SECRET_RO
         "roleIndex=Math.max(0,humanRoleChoices().indexOf(self.role));",
         "client lobby role index")
     source=once(source,
-        """ function changeRole(delta){if(!state||state.phase!=='lobby')return;const idx=ROLE.indexOf(me().role);const next=(idx+delta+ROLE.length)%ROLE.length;action({type:'select',role:ROLE[next]});}""",
+        """function changeRole(delta){if(!state||state.phase!=='lobby')return;const idx=ROLE.indexOf(me().role);const next=(idx+delta+ROLE.length)%ROLE.length;action({type:'select',role:ROLE[next]});}""",
         """ let secretTapCount=0,unlockingSecret=false,secretPopupTimer=null;
  function showSecretPopup(){
   const hint=$('secretHint');if(!hint)return;
