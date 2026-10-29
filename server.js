@@ -37,6 +37,9 @@ const roleName = role => roleNames[role] || role;
 const COLLISION_LINES=Object.fromEntries(Object.entries(GAME_CONTENT.characters).map(([id,data])=>[id,data.collision||[]]));
 // Directed dialogue is selected only for roles actually knocked back to base.
 const collisionLine = (role,capturedRoles=[]) => {
+ // Treat other-color pieces carrying the same OC role as a self encounter.
+ const selfLine=GAME_CONTENT.characters[role]?.collisionSelf;
+ if(capturedRoles.includes(role)&&typeof selfLine==='string'&&selfLine)return selfLine;
  const special=GAME_CONTENT.characters[role]?.collisionTargets||{};
  const target=capturedRoles.find(id=>typeof special[id]==='string'&&special[id]);
  if(target)return special[target];
