@@ -43,6 +43,11 @@ const ROLE=['?',...Object.keys(ROLE_INFO).filter(id=>!ROLE_INFO[id].secret)];
 const humanRoleChoices=()=>state?.secretUnlocked&&SECRET_ROLE?[...ROLE,SECRET_ROLE]:ROLE;
 const roleName=role=>ROLE_INFO[role]?.name||'随机角色';
 const roleMark=role=>ROLE_INFO[role]?.mark||'?';
+const roleTokenMarkup=role=>{
+ const art=ROLE_INFO[role]?.pieceImage;
+ return art?`<img class="role-art" src="${escapeHTML(art)}" alt="" draggable="false">`:escapeHTML(roleMark(role));
+};
+const roleTokenStyle=color=>`--color:${COLOR[color].hex};--piece-base:${GAME_CONTENT.teams[color].base};--piece-edge:${GAME_CONTENT.teams[color].edge}`;
 const COLOR=[
  {name:GAME_CONTENT.teams[0].name,key:'blue',hex:GAME_CONTENT.teams[0].ui,start:39,base:[10,678]},
  {name:GAME_CONTENT.teams[1].name,key:'yellow',hex:GAME_CONTENT.teams[1].ui,start:26,base:[690,678]},
@@ -441,11 +446,12 @@ function renderLobby(){
  renderShareSettings();
  const self=me();if(!self)return;
  roleIndex=Math.max(0,humanRoleChoices().indexOf(self.role));
-  $('myToken').textContent=roleMark(self.role);
+  $('myToken').innerHTML=roleTokenMarkup(self.role);
   $('myToken').style.cursor=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?'pointer':'default';
   $('myToken').setAttribute('role','button');
   $('myToken').tabIndex=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?0:-1;
- $('myToken').style.borderColor=COLOR[self.color].hex;
+ $('myToken').style.borderColor=GAME_CONTENT.teams[self.color].edge;
+ $('myToken').style.backgroundColor=GAME_CONTENT.teams[self.color].base;
  $('myRole').textContent=self.role==='?'?'随机角色':roleName(self.role);
  const used=state.players.filter(p=>p.kind==='human'&&p.color!==self.color).map(p=>p.color);
  $('myColors').innerHTML=ORDER.map(c=>swatchButton(c,c===self.color,used.includes(c))).join('');
@@ -453,7 +459,7 @@ function renderLobby(){
  const specs=[...state.players.map(p=>({...p,fromBot:false})),...state.bots.map((b,i)=>({name:`电脑 ${i+1}`,role:b.role,color:b.color,kind:'ai',fromBot:true}))];
  $('seats').replaceChildren();
  specs.sort((a,b)=>a.color-b.color).forEach(p=>{
-  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(roleName(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${state.mode!=='solo'&&p.kind==='human'&&p.color===state.hostColor?(state.hostAwayUntil?'（房主暂离）':'（房主）'):''}</div></div>`;
+  const div=document.createElement('div');div.className='seat';div.innerHTML=`<div class="tiny" style="${roleTokenStyle(p.color)}">${roleTokenMarkup(p.role)}</div><div class="seatlabels"><div class="seatrole">${escapeHTML(roleName(p.role))}</div><div class="seatname">${escapeHTML(p.name)}${p.kind==='human'&&p.color===state.viewerColor?'（我）':''}${state.mode!=='solo'&&p.kind==='human'&&p.color===state.hostColor?(state.hostAwayUntil?'（房主暂离）':'（房主）'):''}</div></div>`;
   $('seats').appendChild(div);
  });
  $('botControl').hidden=!state.host;
@@ -643,8 +649,8 @@ function renderGame(){
  const count=p.pieces.filter(v=>v===GOAL).length;
  const canTransfer=state.host&&state.mode==='online'&&p.kind==='human'&&!p.auto&&p.connected&&p.color!==state.viewerColor;
  const avatar=canTransfer
-  ? `<button type="button" class="tiny host-transfer-avatar" style="--color:${COLOR[p.color].hex}" data-transfer-color="${p.color}" aria-label="移交房主给${escapeHTML(p.name)}" title="点击头像移交房主">${escapeHTML(roleMark(p.role))}</button>`
-  : `<div class="tiny" style="--color:${COLOR[p.color].hex}">${escapeHTML(roleMark(p.role))}</div>`;
+  ? `<button type="button" class="tiny host-transfer-avatar" style="${roleTokenStyle(p.color)}" data-transfer-color="${p.color}" aria-label="移交房主给${escapeHTML(p.name)}" title="点击头像移交房主">${roleTokenMarkup(p.role)}</button>`
+  : `<div class="tiny" style="${roleTokenStyle(p.color)}">${roleTokenMarkup(p.role)}</div>`;
  const hostMark=p.kind==='human'&&p.color===state.hostColor?`<span class="host-tag">房主${state.hostAwayUntil?'·暂离':''}</span>`:'';
  return `<div class="playerchip ${state.turn===p.color?'turn':''} ${p.finished?'done':''}" style="--color:${COLOR[p.color].hex}">${avatar}<div title="${escapeHTML(roleName(p.role))}" class="seatname seatrole">${escapeHTML(roleName(p.role))}</div><small title="${escapeHTML(p.name)}">${p.kind==='ai'?'电脑':p.auto?'电脑托管':escapeHTML(p.name)}</small><small>${count}/4 已到终点</small>${hostMark}</div>`;
  }).join('');
