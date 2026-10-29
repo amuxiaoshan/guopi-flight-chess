@@ -67,7 +67,7 @@
     "G": {
       "name": "塔努利安",
       "mark": "塔",
-      "pieceImage": null,
+      "pieceImage": "assets/tanulian-original.png",
       "collision": [
         "哇我不是故意的、\n祝你加油！(;ﾟдﾟ)",
         "嗯……不错的决策。",
