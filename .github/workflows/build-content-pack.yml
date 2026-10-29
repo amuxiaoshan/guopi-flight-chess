@@ -83,8 +83,8 @@ jobs:
           import re
           src=Path('public/collision-lab.html').read_text(encoding='utf-8')
           code=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',src,re.S)
-          assert len(code)==1
-          Path('/tmp/collision-lab-inline.js').write_text(code[0],encoding='utf-8')
+          assert len(code)==3
+          Path('/tmp/collision-lab-inline.js').write_text(code[-1],encoding='utf-8')
           PY
           node --check /tmp/collision-lab-inline.js
       - name: Check goal passing and token styles
