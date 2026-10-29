@@ -113,3 +113,18 @@ input,select{font-size:16px}
 .largeToken .role-art,.tiny .role-art{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
 .largeToken{padding:3px}
 .tiny{padding:1px;background:var(--piece-base,#fff);border-color:var(--piece-edge,var(--color,#999))}
+
+
+/* The hidden-character click target is the ? glyph, not the full avatar.
+   Prevent iOS/Android repeated-tap blue selection rectangles. */
+#myToken{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#myToken .secret-question-hit{
+ display:inline-flex;align-items:center;justify-content:center;
+ width:1.12em;height:1.2em;min-width:44px;min-height:44px;
+ margin:0;padding:0;border:0;border-radius:11px;background:transparent;
+ color:inherit;font:inherit;font-weight:inherit;line-height:1;cursor:pointer;
+ -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+ -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+}
+#myToken .secret-question-hit:focus:not(:focus-visible){outline:none}
+#myToken .secret-question-hit:focus-visible{outline:2px solid #416f9c;outline-offset:1px}
