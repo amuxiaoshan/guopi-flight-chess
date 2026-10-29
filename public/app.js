@@ -382,7 +382,8 @@ function syncVotePrompt(){
  }
  const winner=state.players.find(p=>p.color===state.finishOrder[0]);
  $('continueTitle').textContent=`第一名：${winner?winner.role==='?'?winner.name:roleName(winner.role):'已产生'}`;
- $('continueText').textContent='是否继续观看剩余比赛？愿意留下的真人全部同意即可继续；不愿继续可以退出，电脑会接管棋子，之后仍可返回。电脑不投票。';
+ $('continueText').textContent=isSoloMode()?'是否继续观看剩余比赛？继续则由剩余电脑完成比赛；退出则结束本局。':'是否继续观看剩余比赛？愿意留下的真人全部同意即可继续；不愿继续可以退出，电脑会接管棋子，之后仍可返回。电脑不投票。';
+ $('continueNo').textContent=isSoloMode()?'退出比赛':'退出房间（电脑接管）';
  $('continueProgress').textContent=`已同意 ${v.agreed}/${v.required} 人 · 等待其余真人玩家选择`;
  $('continueYes').disabled=v.myVote===true;
  $('continueNo').disabled=false; // Even after voting yes, a participant may choose to leave.
@@ -546,11 +547,15 @@ async function leaveRoom(){
 }
 function isSoloMode(){return state?.mode==='solo'||myRoomMode==='solo';}
 function exitSetup(){
+ if(isSoloMode()){
+  if(state?.phase==='over'){leaveRoom();return;}
+  dialog('确认要退出吗？','',leaveRoom);
+  return;
+ }
  if(state?.phase==='playing'){
   dialog('退出当前比赛？','如果还有真人留在房间，电脑会接管你的棋子，你之后可以重新进入；房主离开超过三分钟会按入房顺序移交。若你是最后一位真人，房间会立即关闭。',leaveRoom);
   return;
  }
- if(isSoloMode()){leaveRoom();return;}
  if(state?.host)dialog('暂时离开房间？','你的房主身份会保留三分钟；期间返回可以继续担任房主。超过三分钟仍未回来，会依最初入房顺序移交给下一位在线真人。',leaveRoom);
  else dialog('退出准备房间？','确定退出房间并释放座位？',leaveRoom);
 }
@@ -752,7 +757,13 @@ async function animateMove(move){$('bubble').style.display='none';const mine=++a
  await sleep(100);if(mine!==animationSerial)return;pieceLanding={color:move.color,id:move.piece};animPiece=null;drawPieces();pieceLanding=null;
  if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
-function rules(){dialog('游戏说明','每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。\n\n真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。房主离开三分钟后按真人原始入房顺序移交，期间回来保留房主身份。');}
+function rules(){
+ const basics='每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。';
+ const solo='单人游戏由电脑按设置自动参赛。第一名产生后，可以选择继续观看剩余比赛；也可以退出并结束本局。已完成的玩家观战。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。';
+ const multiplayer='真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。房主离开三分钟后按真人原始入房顺序移交，期间回来保留房主身份。';
+ const specific=isSoloMode()?solo:(state?.mode==='online'||myRoomMode==='online'?multiplayer:'');
+ dialog('游戏说明',basics+(specific?'\\n\\n'+specific:''));
+}
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
 initDice();placeCube(1);
 refreshReturnSeat();
