@@ -287,7 +287,7 @@ for(const id of ['soundRepairHome','soundRepairGame']){
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 function screen(id){document.querySelectorAll('.screen').forEach(el=>el.classList.toggle('active',el.id===id));}
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2600);}
-function dialog(title,body,confirm=null){$('dlgTitle').textContent=title;$('dlgText').textContent=body;$('dlgClose').textContent=confirm?'取消':'知道了';$('dialog').classList.add('open');$('dlgConfirm').hidden=!confirm;$('dlgConfirm').onclick=confirm?()=>{$('dialog').classList.remove('open');confirm();}:null;}
+function dialog(title,body,confirm=null){$('dialog').classList.toggle('rules-dialog',title==='【适得其所】飞行棋规则');$('dlgTitle').textContent=title;$('dlgText').textContent=body;$('dlgClose').textContent=confirm?'取消':'知道了';$('dialog').classList.add('open');$('dlgConfirm').hidden=!confirm;$('dlgConfirm').onclick=confirm?()=>{$('dialog').classList.remove('open');confirm();}:null;}
 $('dlgClose').onclick=()=>$('dialog').classList.remove('open');
 $('dialog').onclick=e=>{if(e.target===$('dialog'))$('dialog').classList.remove('open');};
 async function api(payload){const response=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,code,token:authToken})});let data;try{data=await response.json();}catch{throw Error('服务端没有返回正确数据');}if(!response.ok)throw Error(data.error||'操作失败');return data;}
@@ -763,11 +763,16 @@ async function animateMove(move){$('bubble').style.display='none';const mine=++a
  if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
 }
 function rules(){
- const basics='每方四枚棋子，掷出6可从基地进入棋盘外的起飞圈，并能再掷一次；起飞圈里的棋子下次掷骰进入棋盘时，紧邻起飞圈的斜三角格算第1格，后面的棋格依次计数。棋子到本色转弯格后进入6格终点道，最里面第6格即终点。落在本色格可向前跳4格；直接落在飞跃格时飞跃。每次掷骰最多触发一次跳格或飞跃，跳到飞机格不再连锁飞跃。走到对手占据的格子时，双方棋子数量不同时可并排共存；相等时把该对手的整组棋子撞回基地（单枚对单枚同样有效）。飞跃经过交叉处时，仍可撞回对方终点道里的单枚棋子。到终点必须刚好，超点折返。连续掷出三个6，未完成棋子回基地。';
- const solo='单人游戏由电脑按设置自动参赛。第一名产生后，可以选择继续观看剩余比赛；也可以退出并结束本局。已完成的玩家观战。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。';
- const multiplayer='真人角色可以重复，但颜色不重复。电脑角色与颜色由房主设置。第一名产生后，会询问所有在场真人是否继续比赛；留下的真人都同意就继续，不愿继续者可以退出由电脑托管，之后还能返回接管。已完成的玩家观战，电脑不投票。可以提前结束并结算，剩余玩家按已进终点的棋子数、再按剩余距离决定排名。对局中离开由电脑暂时接管，返回原设备的房间可以恢复自己的座位。房主离开三分钟后按真人原始入房顺序移交，期间回来保留房主身份。';
- const specific=isSoloMode()?solo:(state?.mode==='online'||myRoomMode==='online'?multiplayer:'');
- dialog('游戏说明',basics+(specific?'\n\n'+specific:''));
+ const sections=[
+  '→人数与目标\n2–4人，每人4架飞机。最先让全部4架飞机精确到达终点者获胜。',
+  '→起飞\n掷出【6点】才能起飞一架飞机，并可再掷一次。',
+  '→行棋\n按骰子点数前进。棋子停在与自己同色的格子上，可向前跳4格；跳格后不可再连跳。',
+  '→飞棋（虚线）\n· 直接走到同色虚线格：沿虚线飞到对面。\n· 通过跳格到达虚线格：不能飞过去。',
+  '→撞击与迭子\n停在对方棋子所在格，对方回基地。若对方有多个棋子在这个格子里，那么对方不会回到基地。想要对方回到基底需要有相同数量的棋子在这一格里。',
+  '→终点\n必须恰好到达终点；若投掷点数超出则往回退多余步数。',
+  '→惩罚\n连续三次掷出6点，己方飞机全部返回基地。'
+ ];
+ dialog('【适得其所】飞行棋规则',sections.join('\n\n'));
 }
 $('rulesHome').onclick=rules;$('gameRules').onclick=rules;
 initDice();placeCube(1);
