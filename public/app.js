@@ -1,26 +1,51 @@
 'use strict';
 // Flight chess front end: one shared room state for humans, and server-driven AI.
 const $ = id => document.getElementById(id);
+const GAME_CONTENT=globalThis.GAME_CONTENT;
 const NS='http://www.w3.org/2000/svg';
 // Stable game identifiers A-H map to Shanshan's OCs. Names/marks are display-only.
-const ROLE_INFO={
- A:{name:'青栖禾',mark:'禾'},
- B:{name:'澄',mark:'澄'},
- C:{name:'勒尔斯',mark:'勒'},
- D:{name:'麦冬',mark:'麦'},
- E:{name:'波波亚',mark:'波'},
- F:{name:'麻特',mark:'麻'},
- G:{name:'塔努利安',mark:'塔'},
- H:{name:'亚洛',mark:'亚'}
-};
+const ROLE_INFO=GAME_CONTENT.characters;
+
+function applyPackUI(){
+ const ui=GAME_CONTENT.ui||{},art=GAME_CONTENT.art||{};
+ document.title=ui.documentTitle||GAME_CONTENT.title||document.title;
+ for(const [selector,value] of [
+  ['#welcome .titleblock h1',ui.welcomeTitle||GAME_CONTENT.title],
+  ['#welcome .titleblock p',ui.welcomeSubtitle],
+  ['#game .nav strong',ui.gameTitle||GAME_CONTENT.title],
+  ['#welcome .intro .sub',ui.welcomeDescription]
+ ]){
+  const el=document.querySelector(selector);
+  if(el&&value)el.textContent=value;
+ }
+ const board=document.querySelector('.boardart');if(board&&art.board)board.src=art.board;
+ const download=document.querySelector('a[download]');if(download&&ui.downloadName)download.download=ui.downloadName;
+ const result=document.querySelector('.art-placeholder');
+ if(result&&art.resultImage){
+  result.replaceChildren();
+  result.style.background='center / contain no-repeat url("'+art.resultImage+'")';
+  result.setAttribute('aria-label','结算插图');
+ }
+ if(art.backgroundImage)document.body.style.backgroundImage='url("'+art.backgroundImage+'")';
+ if(art.logoImage){
+  const h=document.querySelector('#welcome .titleblock h1');
+  if(h){const logo=document.createElement('img');logo.src=art.logoImage;logo.alt=ui.welcomeTitle||GAME_CONTENT.title;logo.style.cssText='max-width:100%;max-height:135px;object-fit:contain';h.replaceChildren(logo);}
+ }
+ if(art.uiCss){const css=document.createElement('link');css.rel='stylesheet';css.href=art.uiCss;document.head.appendChild(css);}
+ for(const [name,value] of Object.entries(GAME_CONTENT.theme||{})){
+  if(/^--[a-z0-9-]+$/.test(name)&&typeof value==='string')document.documentElement.style.setProperty(name,value);
+ }
+}
+applyPackUI();
+
 const ROLE=['?',...Object.keys(ROLE_INFO)];
 const roleName=role=>ROLE_INFO[role]?.name||'随机角色';
 const roleMark=role=>ROLE_INFO[role]?.mark||'?';
 const COLOR=[
- {name:'蓝',key:'blue',hex:'#41a7f5',start:39,base:[10,678]},
- {name:'黄',key:'yellow',hex:'#f6c945',start:26,base:[690,678]},
- {name:'绿',key:'green',hex:'#58c26a',start:0,base:[10,22]},
- {name:'红',key:'red',hex:'#ef5350',start:13,base:[690,22]}
+ {name:GAME_CONTENT.teams[0].name,key:'blue',hex:GAME_CONTENT.teams[0].ui,start:39,base:[10,678]},
+ {name:GAME_CONTENT.teams[1].name,key:'yellow',hex:GAME_CONTENT.teams[1].ui,start:26,base:[690,678]},
+ {name:GAME_CONTENT.teams[2].name,key:'green',hex:GAME_CONTENT.teams[2].ui,start:0,base:[10,22]},
+ {name:GAME_CONTENT.teams[3].name,key:'red',hex:GAME_CONTENT.teams[3].ui,start:13,base:[690,22]}
 ];
 const ORDER=[3,1,0,2];
 const TURN=49, LANE=50, GOAL=55;
@@ -505,12 +530,7 @@ function piecePosition(p,id){if(animPiece?.color===p.color&&animPiece?.id===id)r
 const PIECE_REST_DIAMETER=60;
 const PIECE_MOVE_DIAMETER=85;
 // Token-specific colors. Keep COLOR[] for game UI and board indicators.
-const PIECE_COLORS=[
- {base:'#A9CFF3',edge:'#416F9C'}, // blue (player 0)
- {base:'#F4DEA0',edge:'#896424'}, // yellow (player 1)
- {base:'#A9D8B0',edge:'#417954'}, // green (player 2)
- {base:'#F2A7A7',edge:'#9B4D59'}  // red (player 3)
-];
+const PIECE_COLORS=GAME_CONTENT.teams.map(team=>({base:team.base,edge:team.edge}));
 let pieceLanding=null;
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
@@ -533,17 +553,18 @@ function drawPieces(){
   const {p,id,x,y}=pack[i];const count=pack.length;
   const colCount=Math.ceil(Math.sqrt(count));
   // Mixed-color stacks share the same square; give each piece a visible seat.
-  const packed=count>1, hasPopoya=pack.some(item=>item.p.role==='E');
+  const packed=count>1, hasPopoya=pack.some(item=>Boolean(ROLE_INFO[item.p.role]?.pieceImage));
   const spacing=packed?(hasPopoya?44:30):0;
   const movingPiece=animPiece?.color===p.color&&animPiece?.id===id;
   const openingPiece=movingPiece&&animPiece.growing;
   const landingPiece=pieceLanding?.color===p.color&&pieceLanding?.id===id;
   // Stacked pieces remain compact when resting; a moving piece grows to 85.
-  const compactRadius=p.role==='E'?Math.min(20,Math.round(restSize*.34)):17;
+  const hasArt=Boolean(ROLE_INFO[p.role]?.pieceImage);
+  const compactRadius=hasArt?Math.min(20,Math.round(restSize*.34)):17;
   const tone=PIECE_COLORS[p.color];
   const radius=movingPiece?restSize/2:(packed?compactRadius:restSize/2);
   const scale=PIECE_MOVE_DIAMETER/PIECE_REST_DIAMETER;
-  const border=p.role==='E'?(movingPiece?3.2/scale:packed?2.8:3.2):(movingPiece?5/scale:packed?3.5:5);
+  const border=hasArt?(movingPiece?3.2/scale:packed?2.8:3.2):(movingPiece?5/scale:packed?3.5:5);
   const fontSize=movingPiece?22:packed?16:22;
   const dx=packed?(i%colCount-(colCount-1)/2)*spacing:0;
   const dy=packed?(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*spacing:0;
@@ -553,12 +574,12 @@ function drawPieces(){
    const peak=-(radius+(packed?16:28));
    svg('path',{d:`M-10 ${peak} L10 ${peak} L0 ${peak+14}Z`,fill:tone.edge,stroke:'white','stroke-width':2,class:'pointer'},group);}
   const sprite=svg('g',{},group);
-  if(p.role==='E'){
+  if(hasArt){
    // Only the SOLID-COLORED ROUND BASE receives the dark stroke.
    // Popoya's original PNG and its pre-existing white outline are untouched.
    const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed&&!movingPiece?3.5:4);
    svg('circle',{r:discRadius,fill:tone.base,stroke:tone.edge,'stroke-width':rim},sprite);
-   svg('image',{href:'/assets/popoya-original.png?v=popoya-7b365e61961d',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},sprite);
+   svg('image',{href:ROLE_INFO[p.role].pieceImage,x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},sprite);
   }else{
    svg('circle',{r:radius,fill:tone.base,stroke:tone.edge,'stroke-width':border},sprite);
    const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},sprite);letter.textContent=roleMark(p.role);

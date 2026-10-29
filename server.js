@@ -6,6 +6,11 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const root = path.join(__dirname, 'public');
+
+const packId=require('./content/active.json').active;
+if(!/^[a-z0-9_-]+$/.test(packId))throw Error('Invalid active content pack');
+const GAME_CONTENT=require('./content/packs/'+packId+'/pack.json');
+
 const PORT = Number(process.env.PORT || 3000);
 function localAddresses(){
   const entries=[];
@@ -25,51 +30,10 @@ function localAddresses(){
 
 const colors = ['blue','yellow','green','red'];
 const roles = ['A','B','C','D','E','F','G','H'];
-const roleNames = {A:'青栖禾',B:'澄',C:'勒尔斯',D:'麦冬',E:'波波亚',F:'麻特',G:'塔努利安',H:'亚洛'};
+const roleNames=Object.fromEntries(Object.entries(GAME_CONTENT.characters).map(([id,data])=>[id,data.name]));
 const roleName = role => roleNames[role] || role;
 // Choose one authoritative line for each collision. Newlines only format long lines.
-const COLLISION_LINES = {
- "A": [
-  "哎哎？ Σ(⊙▽⊙",
-  "真是抱歉…",
-  "下次要注意路况哦。\n( ᴗˬᴗ)"
- ],
- "B": [
-  "抱歉抱歉——！",
-  "不好意思哦！(人˘ㅂ˘)",
-  "芜湖~此处已占领！"
- ],
- "C": [
-  "现在这地方归我了",
-  "闪开点。",
-  "下次注意些吧。"
- ],
- "D": [
-  "借过！(●´∀)σ",
-  "对不住咯",
-  "抱歉！但我不改。"
- ],
- "E": [
-  "当当——漂亮的一击！",
-  "Prefect~(ˆoˆ)",
-  "吃！(`▽´๑)"
- ],
- "F": [
-  "注意点。",
-  "下次加把劲。",
-  "运气不错…"
- ],
- "G": [
-  "哇我不是故意的、\n祝你加油！(;ﾟдﾟ)",
-  "嗯……不错的决策。",
-  "呃，下一个更好……？\n(ﾟ◇ﾟﾉ)ﾉ"
- ],
- "H": [
-  "……嗯？",
-  "不好意思。",
-  "我下次注意。"
- ]
-};
+const COLLISION_LINES=Object.fromEntries(Object.entries(GAME_CONTENT.characters).map(([id,data])=>[id,data.collision||[]]));
 const collisionLine = role => {const lines=COLLISION_LINES[role]||[];return lines.length?lines[rand(lines.length)]:'';};
 const startIndex = [39,26,0,13];
 // 掷出6从基地到预备区旁的起飞圈 (pos=-2)；下次掷骰时，各队斜三角格为第1格 (pos=0)。
@@ -595,9 +559,15 @@ const server=http.createServer(async(req,res)=>{
     return;
   }
   if(req.method==='GET'){
-    const known={'/':'index.html','/index.html':'index.html','/board.svg':'board.svg','/board-lineart.svg':'board-lineart.svg','/single.html':'single.html','/collision-test.html':'collision-test.html','/goal-test.html':'goal-test.html','/spectate-test.html':'spectate-test.html','/piece-preview.html':'piece-preview.html','/piece-motion-test.html':'piece-motion-test.html','/piece-color-test.html':'piece-color-test.html','/app.js':'app.js','/style.css':'style.css','/assets/popoya-original.png':'assets/popoya-original.png'};
+    const known={'/':'index.html','/index.html':'index.html','/board.svg':'board.svg','/board-lineart.svg':'board-lineart.svg','/single.html':'single.html','/collision-test.html':'collision-test.html','/goal-test.html':'goal-test.html','/spectate-test.html':'spectate-test.html','/piece-preview.html':'piece-preview.html','/piece-motion-test.html':'piece-motion-test.html','/piece-color-test.html':'piece-color-test.html','/content-pack.js':'content-pack.js','/app.js':'app.js','/style.css':'style.css','/assets/popoya-original.png':'assets/popoya-original.png'};
+    // Expose only artwork files referenced by the active content pack.
+    const artRefs=[...Object.values(GAME_CONTENT.characters).map(c=>c.pieceImage),...Object.values(GAME_CONTENT.art||{})].filter(v=>typeof v==='string'&&v.startsWith('assets/'));
+    for(const asset of artRefs){
+      const rel='content/assets/'+packId+'/'+asset;
+      known['/'+rel]=rel;
+    }
     const name=known[url.pathname];if(!name)fail('页面不存在',404);
-    const type=name.endsWith('.html')?'text/html; charset=utf-8':name.endsWith('.css')?'text/css; charset=utf-8':name.endsWith('.js')?'text/javascript; charset=utf-8':name.endsWith('.png')?'image/png':'image/svg+xml';
+    const type=name.endsWith('.html')?'text/html; charset=utf-8':name.endsWith('.css')?'text/css; charset=utf-8':name.endsWith('.js')?'text/javascript; charset=utf-8':name.endsWith('.png')?'image/png':name.endsWith('.webp')?'image/webp':name.endsWith('.jpg')||name.endsWith('.jpeg')?'image/jpeg':name.endsWith('.js')?'text/javascript; charset=utf-8':name.endsWith('.css')?'text/css; charset=utf-8':'image/svg+xml';
     const data=fs.readFileSync(path.join(root,name));res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'});res.end(data);return;
   }
   fail('不支持的请求',405);
