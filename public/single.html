@@ -1065,9 +1065,10 @@ function receive(next){
  const newRoll=!first&&next.lastRoll?.seq!==undefined&&next.lastRoll.seq!==lastRollSeq;
  // Server state already contains home positions. Display the saved originals
  // until the third 6 has finished spinning, then reuse the normal 190ms return.
- if(newRoll&&next.lastRoll.returns?.length){
-  clearCaptureFlights();
-  captureFlights=next.lastRoll.returns.map(c=>({...c,step:-1,phase:'waiting',animation:null}));
+ if(newRoll){
+  clearCaptureFlights(); // Also cancel an unfinished penalty animation if a newer roll supersedes it.
+  if(next.lastRoll.returns?.length)
+   captureFlights=next.lastRoll.returns.map(c=>({...c,step:-1,phase:'waiting',animation:null}));
  }
  state=next;lastSequence=next.seq;
  if(first){roleIndex=Math.max(0,humanRoleChoices().indexOf(me()?.role??'?'));}
