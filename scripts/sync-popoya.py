@@ -1,40 +1,33 @@
 #!/usr/bin/env python3
-"""Keep Popoya artwork references in sync with the exact uploaded PNG."""
-import base64
+"""Sync the exact original PNG into the active OC pack; no image processing."""
 import hashlib
 import re
+import subprocess
+import sys
 from pathlib import Path
 
-root = Path(__file__).resolve().parents[1]
-png = (root / "public/assets/popoya-original.png").read_bytes()
+root=Path(__file__).resolve().parents[1]
+png=(root/"public/assets/popoya-original.png").read_bytes()
 if not png.startswith(bytes.fromhex("89504e470d0a1a0a")):
-    raise SystemExit("Popoya image is not a valid PNG file")
-stamp = "popoya-" + hashlib.sha256(png).hexdigest()[:12]
+    raise SystemExit("Not a PNG")
+stamp="popoya-"+hashlib.sha256(png).hexdigest()[:12]
 
-for name in ("app.js", "piece-preview.html"):
-    path = root / "public" / name
-    old = path.read_text(encoding="utf-8")
-    new, count = re.subn(
-        r"(/assets/popoya-original\.png)\?v=[a-zA-Z0-9_-]+",
-        lambda match: match.group(1) + "?v=" + stamp,
-        old,
+# Keep legacy sample/test pages in sync with the original asset and cache tag.
+for name in ("piece-preview.html","piece-motion-test.html","piece-color-test.html","goal-test.html"):
+    path=root/"public"/name
+    if not path.exists():
+        continue
+    original=path.read_text(encoding="utf-8")
+    replacement=re.sub(
+      r"(/assets/popoya-original\.png)\?v=[a-zA-Z0-9_-]+",
+      lambda m:m.group(1)+"?v="+stamp,
+      original
     )
-    if count < 1:
-        raise SystemExit("No artwork reference found in " + name)
-    if new != old:
-        path.write_text(new, encoding="utf-8")
-    print(name + ": updated " + str(count) + " image URL(s)")
+    if replacement!=original:
+        path.write_text(replacement,encoding="utf-8")
+        print(name+": refreshed original PNG reference")
 
-path = root / "public/single.html"
-old = path.read_text(encoding="utf-8")
-encoded = base64.b64encode(png).decode("ascii")
-new, count = re.subn(
-    r"const POPOYA_PNG='data:image/png;base64,[a-zA-Z0-9+/=]+';",
-    lambda match: "const POPOYA_PNG='data:image/png;base64," + encoded + "';",
-    old,
-)
-if count != 1:
-    raise SystemExit("Expected one embedded Popoya PNG in offline game, got " + str(count))
-if new != old:
-    path.write_text(new, encoding="utf-8")
-print("single.html: embedded uploaded original PNG, no visual modifications")
+# The OC content-pack builder copies identical bytes into content/packs/oc/assets
+# and public/content/assets/oc/assets and embeds them in standalone HTML.
+subprocess.run([sys.executable,str(root/"scripts/build-content-pack.py")],check=True)
+print("Original PNG byte-for-byte synchronized; no image filters or transformations")
