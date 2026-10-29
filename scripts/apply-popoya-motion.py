@@ -22,6 +22,11 @@ new_finish = "await sleep(100);if(mine!==animationSerial)return;popoyaLanding={c
 for name in ("app.js", "single.html"):
     path = root / "public" / name
     src = path.read_text(encoding="utf-8")
+    if "const sprite=svg('g',{},sprite);" in src:
+        src = src.replace("const sprite=svg('g',{},sprite);", "const sprite=svg('g',{},group);")
+        path.write_text(src, encoding="utf-8")
+        print(name + ": fixed animation group initialization")
+        continue
     if "const POPOYA_REST_DIAMETER=60;" in src:
         print(name + " already updated")
         continue
