@@ -504,6 +504,13 @@ function piecePosition(p,id){if(animPiece?.color===p.color&&animPiece?.id===id)r
  // Original character images (including Popoya's PNG) are never modified.
 const PIECE_REST_DIAMETER=60;
 const PIECE_MOVE_DIAMETER=85;
+// Token-specific colors. Keep COLOR[] for game UI and board indicators.
+const PIECE_COLORS=[
+ {base:'#A9CFF3',edge:'#416F9C'}, // blue (player 0)
+ {base:'#F4DEA0',edge:'#896424'}, // yellow (player 1)
+ {base:'#A9D8B0',edge:'#417954'}, // green (player 2)
+ {base:'#F2A7A7',edge:'#9B4D59'}  // red (player 3)
+];
 let pieceLanding=null;
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
@@ -533,6 +540,7 @@ function drawPieces(){
   const landingPiece=pieceLanding?.color===p.color&&pieceLanding?.id===id;
   // Stacked pieces remain compact when resting; a moving piece grows to 85.
   const compactRadius=p.role==='E'?Math.min(20,Math.round(restSize*.34)):17;
+  const tone=PIECE_COLORS[p.color];
   const radius=movingPiece?restSize/2:(packed?compactRadius:restSize/2);
   const scale=PIECE_MOVE_DIAMETER/PIECE_REST_DIAMETER;
   const border=p.role==='E'?(movingPiece?3.2/scale:packed?2.8:3.2):(movingPiece?5/scale:packed?3.5:5);
@@ -541,18 +549,18 @@ function drawPieces(){
   const dy=packed?(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*spacing:0;
   const canSelect=state.viewerColor===p.color&&state.turn===p.color&&state.roundPhase==='choose'&&state.options.length>1&&state.options.includes(id)&&!animPiece;
   const group=svg('g',{transform:`translate(${x+dx} ${y+dy})`,class:canSelect?'piece available':'piece',role:canSelect?'button':'img','aria-label':`${p.role} 第${id+1}枚棋子`,tabindex:canSelect?'0':'-1'},node);
-  if(canSelect){svg('circle',{r:radius+(packed?7:8),fill:'none',stroke:COLOR[p.color].hex,'stroke-width':5,class:'halo'},group);
+  if(canSelect){svg('circle',{r:radius+(packed?7:8),fill:'none',stroke:tone.edge,'stroke-width':5,class:'halo'},group);
    const peak=-(radius+(packed?16:28));
-   svg('path',{d:`M-10 ${peak} L10 ${peak} L0 ${peak+14}Z`,fill:COLOR[p.color].hex,stroke:'white','stroke-width':2,class:'pointer'},group);}
+   svg('path',{d:`M-10 ${peak} L10 ${peak} L0 ${peak+14}Z`,fill:tone.edge,stroke:'white','stroke-width':2,class:'pointer'},group);}
   const sprite=svg('g',{},group);
   if(p.role==='E'){
    // Only the SOLID-COLORED ROUND BASE receives the dark stroke.
    // Popoya's original PNG and its pre-existing white outline are untouched.
    const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed&&!movingPiece?3.5:4);
-   svg('circle',{r:discRadius,fill:COLOR[p.color].hex,stroke:'#111111','stroke-width':rim},sprite);
+   svg('circle',{r:discRadius,fill:tone.base,stroke:tone.edge,'stroke-width':rim},sprite);
    svg('image',{href:'/assets/popoya-original.png?v=popoya-7b365e61961d',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},sprite);
   }else{
-   svg('circle',{r:radius,fill:'white',stroke:COLOR[p.color].hex,'stroke-width':border},sprite);
+   svg('circle',{r:radius,fill:tone.base,stroke:tone.edge,'stroke-width':border},sprite);
    const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},sprite);letter.textContent=roleMark(p.role);
   }
   // Scale the colored base and character art/letter as a single sprite.
