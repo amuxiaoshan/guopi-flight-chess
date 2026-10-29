@@ -42,11 +42,11 @@ h2{font-size:16px;margin:0 0 6px}
 <body>
 <main>
 <header><a href="/">‹ 返回正式游戏</a>　<a href="/piece-motion-test.html">动态走棋测试</a></header>
-<h1>棋子淡彩与描边试装</h1>
-<p>默认选用你刚确定的柔和淡彩底盘。下面可以直接对比近黑色、深灰色和柔灰色描边，再看它们在棋盘上的实际效果。<strong>这只是试色，不会改变正式游戏配色。</strong></p>
+<h1>棋子淡彩 · 同色深描边试装</h1>
+<p>柔和淡彩配上同色系深描边，四个阵营各有自己的轮廓。也能切换原来的近黑和两种灰色作对照，看看波波亚原图哪种搭配更和谐。<strong>这只是试色，不会改变正式游戏配色。</strong></p>
 <section class="compare" id="choices" aria-label="三套棋子色卡"></section>
 <h2>描边颜色对比</h2>
-<p>三组直径、描边粗细均相同（60 单位 / 3.2 单位），只改变描边色。图片不做任何加工。</p>
+<p>四组直径、描边粗细均相同（60 单位 / 3.2 单位），只改变描边颜色；选择后，下方棋盘会同步更新。</p>
 <section class="edge-choices" id="edgeChoices" aria-label="不同深浅的描边"></section>
 <section class="board-panel">
 <h2 id="selectedTitle">柔和淡彩 · 棋盘预览</h2>
@@ -54,7 +54,7 @@ h2{font-size:16px;margin:0 0 6px}
 <div class="board"><img src="/board.svg" alt="正式游戏棋盘"><svg id="boardPieces" viewBox="0 0 900 900" role="img" aria-label="选中配色在棋盘上的实际比例"></svg></div>
 <div id="legend" class="legend"></div>
 </section>
-<div class="note">原始插图不调色、不加滤镜，不改白边或透明度。彩色圆底的描边粗细维持 3.2 单位，颜色可在上方切换。这里是静止状态的 60 单位；游戏里移动仍放大到 85 单位。最终选哪一组，由你决定。</div>
+<div class="note">原始插图不调色、不加滤镜，也不修改白边或透明度。彩色圆底的描边仍为 3.2 单位。静止棋子 60 单位，走棋时放大到 85 单位。本页保留黑灰描边作比较。</div>
 </main>
 <script>
 'use strict';
@@ -63,27 +63,31 @@ const IMAGE='/assets/popoya-original.png?v=popoya-7b365e61961d';
 const TEAMS=['红','黄','绿','蓝'];
 const PALETTES=[
  {id:'current',name:'原版高饱和',note:'现有阵营底色 · 对照组',description:'色彩明亮，存在感较强。',colors:['#ef5350','#f6c945','#58c26a','#41a7f5']},
- {id:'soft',name:'柔和淡彩',note:'推荐先看这一组',description:'颜色柔和，但红黄绿蓝依然比较清楚。',colors:['#F2A7A7','#F4DEA0','#A9D8B0','#A9CFF3']},
+ {id:'soft',name:'柔和淡彩',note:'已选定的棋子底色',description:'颜色柔和，但红黄绿蓝依然比较清楚。',colors:['#F2A7A7','#F4DEA0','#A9D8B0','#A9CFF3']},
  {id:'milky',name:'奶雾浅彩',note:'更浅、更轻',description:'接近奶油色系，角色图片更突出。',colors:['#F6BABA','#F7E7B8','#BCE2C2','#BDD9F6']}
 ];
 const POS=[[450,150],[750,450],[150,450],[450,750]];
+const DEEP_EDGES=['#9B4D59','#896424','#417954','#416F9C'];
+const DEEP_LOOKUP=Object.fromEntries(PALETTES.flatMap(p=>p.colors.map((hex,i)=>[hex.toLowerCase(),DEEP_EDGES[i]])));
 const EDGES=[
- {id:'original',name:'原版近黑',hex:'#111111',note:'现有版本 · 对照'},
- {id:'charcoal',name:'深灰',hex:'#2B2B2B',note:'更柔和 · 推荐试用'},
- {id:'softgrey',name:'柔灰',hex:'#454545',note:'对比最明显'}
+ {id:'team',name:'同色深描边',hex:'team',note:'红配深红、蓝配深蓝 · 新方案'},
+ {id:'original',name:'原版近黑',hex:'#111111',note:'旧方案 · 对照'},
+ {id:'charcoal',name:'深灰',hex:'#2B2B2B',note:'统一深灰'},
+ {id:'softgrey',name:'柔灰',hex:'#454545',note:'统一柔灰'}
 ];
-let selectedStroke=EDGES[1].hex;
+let selectedStroke='team';
 let activePalette=PALETTES[1];
 const $=id=>document.getElementById(id);
 const svg=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);for(const [key,val]of Object.entries(attrs))e.setAttribute(key,String(val));parent.appendChild(e);return e;};
 function piece(svgParent,fill,x,y,diameter=60){
  const group=svg('g',{transform:'translate('+x+' '+y+')'},svgParent),r=diameter/2,border=3.2,artRadius=r-4;
- svg('circle',{r:r-border/2,fill,stroke:selectedStroke,'stroke-width':border},group);
+ svg('circle',{r:r-border/2,fill,stroke:selectedStroke==='team'?DEEP_LOOKUP[fill.toLowerCase()]:selectedStroke,'stroke-width':border},group);
  svg('image',{href:IMAGE,x:-artRadius,y:-artRadius,width:2*artRadius,height:2*artRadius,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
 }
 function choose(palette){
  activePalette=palette;
  renderEdges();
+ updatePaletteSamples();
  for(const el of document.querySelectorAll('[data-palette]'))el.setAttribute('aria-pressed',String(el.dataset.palette===palette.id));
  $('selectedTitle').textContent=palette.name+' · 棋盘预览';
  $('selectedText').textContent=palette.description;
@@ -92,7 +96,14 @@ function choose(palette){
  $('legend').replaceChildren();
  for(let i=0;i<4;i++){
   const el=document.createElement('span'),dot=document.createElement('i');
-  dot.style.background=palette.colors[i];dot.style.borderColor=selectedStroke;el.append(dot,document.createTextNode(TEAMS[i]+' '+palette.colors[i].toUpperCase()));$('legend').append(el);
+  dot.style.background=palette.colors[i];dot.style.borderColor=selectedStroke==='team'?DEEP_EDGES[i]:selectedStroke;el.append(dot,document.createTextNode(TEAMS[i]+' '+palette.colors[i].toUpperCase()));$('legend').append(el);
+ }
+}
+function updatePaletteSamples(){
+ for(const card of document.querySelectorAll('[data-palette]')){
+  const palette=PALETTES.find(p=>p.id===card.dataset.palette);
+  if(!palette)continue;
+  card.querySelectorAll('.token svg').forEach((el,i)=>{el.replaceChildren();piece(el,palette.colors[i],0,0);});
  }
 }
 function renderEdges(){
@@ -105,7 +116,7 @@ function renderEdges(){
   piece(sample,activePalette.colors[0],-33,0);
   piece(sample,activePalette.colors[3],33,0);
   selectedStroke=old;
-  const title=document.createElement('strong');title.textContent=edge.name+' · '+edge.hex;
+  const title=document.createElement('strong');title.textContent=edge.name+(edge.hex==='team'?' · 四色配套':' · '+edge.hex);
   const note=document.createElement('small');note.textContent=edge.note;
   button.append(title,note);
   button.onclick=()=>{selectedStroke=edge.hex;choose(activePalette);};
