@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'scripts/apply-popoya-motion.py'
+      - 'scripts/apply-piece-pastel.py'
+      - 'tests/piece-palette.test.js'
       - 'tests/goal-pass-through.test.js'
       - '.github/workflows/apply-popoya-motion.yml'
   workflow_dispatch:
@@ -20,6 +22,8 @@ jobs:
           persist-credentials: true
       - name: Patch online and offline movement for every character
         run: python3 scripts/apply-popoya-motion.py
+      - name: Apply pastel bases and matching deep-color outlines
+        run: python3 scripts/apply-piece-pastel.py
       - name: Validate game JavaScript and inline HTML scripts
         run: |
           node --check public/app.js
@@ -36,6 +40,8 @@ jobs:
           for f in /tmp/single.html-*.js /tmp/piece-motion-test.html-*.js; do node --check "$f"; done
       - name: Test goal pass-through and overshoot rebound
         run: node tests/goal-pass-through.test.js
+      - name: Test piece palette consistency across all versions
+        run: node tests/piece-palette.test.js
       - name: Commit game updates
         run: |
           git config user.name "github-actions[bot]"
