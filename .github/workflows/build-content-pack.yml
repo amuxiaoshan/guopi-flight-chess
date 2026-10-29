@@ -8,6 +8,10 @@ on:
       - 'scripts/apply-secret-role.py'
       - 'tests/secret-role.test.js'
       - 'tests/content-pack.test.js'
+      - 'tests/oc-art-preview.test.js'
+      - 'public/app.js'
+      - 'public/single.html'
+      - 'public/style.css'
       - '.github/workflows/build-content-pack.yml'
   workflow_dispatch:
     inputs:
@@ -66,6 +70,7 @@ jobs:
           node tests/piece-palette.test.js
           node tests/content-pack.test.js
           node tests/secret-role.test.js
+          node tests/oc-art-preview.test.js
       - name: Verify content pack idempotence
         run: |
           python3 scripts/build-content-pack.py
