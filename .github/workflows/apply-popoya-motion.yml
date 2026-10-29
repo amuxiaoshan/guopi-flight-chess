@@ -32,6 +32,8 @@ jobs:
                   Path('/tmp/'+name+'-'+str(n)+'.js').write_text(code,encoding='utf-8')
           PY
           for f in /tmp/single.html-*.js /tmp/piece-motion-test.html-*.js; do node --check "$f"; done
+      - name: Test goal pass-through and overshoot rebound
+        run: node tests/goal-pass-through.test.js
       - name: Commit game updates
         run: |
           git config user.name "github-actions[bot]"
