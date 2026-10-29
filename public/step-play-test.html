@@ -1518,6 +1518,10 @@ const stepScenarios=[
  {name:'跳格落地踩棋 · 蓝方踩红方',color:0,enemyColor:3,start:3,die:2,enemy:[35,-1,-1,-1],own:[-1,-1,-1]},
  {name:'跳格前后连续踩棋',color:3,enemyColor:0,start:10,die:3,enemy:[39,43,-1,-1],own:[-1,-1,-1]},
  {name:'飞棋掠过终点道踩棋',color:0,enemyColor:3,start:14,die:3,enemy:[52,-1,-1,-1],own:[-1,-1,-1]},
+ {name:'气泡定位：右上 · 红方踩蓝方',color:3,enemyColor:0,start:-2,die:1,enemy:[26,-1,-1,-1],own:[-1,-1,-1]},
+ {name:'气泡定位：左上 · 蓝方踩绿方',color:0,enemyColor:2,start:18,die:2,enemy:[7,-1,-1,-1],own:[-1,-1,-1]},
+ {name:'气泡定位：右下 · 绿方踩红方',color:2,enemyColor:3,start:30,die:2,enemy:[19,-1,-1,-1],own:[-1,-1,-1]},
+ {name:'气泡定位：左下 · 黄方踩红方',color:1,enemyColor:3,start:18,die:2,enemy:[33,-1,-1,-1],own:[-1,-1,-1]},
  {name:'终点外圈最后一格 · 不跳（关键回归）',color:3,enemyColor:0,start:48,die:1,enemy:[-1,-1,-1,-1],own:[-1,-1,-1],testFinish:true,expectTo:49,expectJump:false},
  {name:'终点道入口 · 正常进道不跳',color:3,enemyColor:0,start:49,die:1,enemy:[-1,-1,-1,-1],own:[-1,-1,-1],testFinish:true,expectTo:50,expectJump:false},
  {name:'此前正常的同色跳格仍有效',color:3,enemyColor:0,start:44,die:1,enemy:[-1,-1,-1,-1],own:[-1,-1,-1],testFinish:true,expectTo:49,expectJump:true}
