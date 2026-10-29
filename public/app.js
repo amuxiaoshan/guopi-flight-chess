@@ -38,7 +38,9 @@ function applyPackUI(){
 }
 applyPackUI();
 
-const ROLE=['?',...Object.keys(ROLE_INFO)];
+const SECRET_ROLE=Object.entries(ROLE_INFO).find(([id,info])=>info.secret&&info.humanOnly)?.[0]||null;
+const ROLE=['?',...Object.keys(ROLE_INFO).filter(id=>!ROLE_INFO[id].secret)];
+const humanRoleChoices=()=>state?.secretUnlocked&&SECRET_ROLE?[...ROLE,SECRET_ROLE]:ROLE;
 const roleName=role=>ROLE_INFO[role]?.name||'随机角色';
 const roleMark=role=>ROLE_INFO[role]?.mark||'?';
 const COLOR=[
@@ -414,7 +416,7 @@ function receive(next){
  }
  const first=lastSequence<0;
  state=next;lastSequence=next.seq;
- if(first){roleIndex=Math.max(0,ROLE.indexOf(me()?.role??'?'));}
+ if(first){roleIndex=Math.max(0,humanRoleChoices().indexOf(me()?.role??'?'));}
  if(next.phase==='lobby'){syncVotePrompt();screen('lobby');renderLobby();prepareLanAddresses();return;}
  if(next.phase==='playing'){screen('game');renderGame();syncVotePrompt();}
  if(next.phase==='over'){
@@ -438,8 +440,11 @@ function renderLobby(){
  $('codeText').textContent=state.mode==='solo'?'':state.code;
  renderShareSettings();
  const self=me();if(!self)return;
- roleIndex=Math.max(0,ROLE.indexOf(self.role));
- $('myToken').textContent=roleMark(self.role);
+ roleIndex=Math.max(0,humanRoleChoices().indexOf(self.role));
+  $('myToken').textContent=roleMark(self.role);
+  $('myToken').style.cursor=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?'pointer':'default';
+  $('myToken').setAttribute('role','button');
+  $('myToken').tabIndex=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?0:-1;
  $('myToken').style.borderColor=COLOR[self.color].hex;
  $('myRole').textContent=self.role==='?'?'随机角色':roleName(self.role);
  const used=state.players.filter(p=>p.kind==='human'&&p.color!==self.color).map(p=>p.color);
@@ -471,7 +476,39 @@ function renderLobby(){
   $('botEditors').querySelectorAll('[data-color-index]').forEach(el=>el.onchange=()=>action({type:'bot-config',index:Number(el.dataset.colorIndex),color:Number(el.value)}));
  }
 }
-function changeRole(delta){if(!state||state.phase!=='lobby')return;const idx=ROLE.indexOf(me().role);const next=(idx+delta+ROLE.length)%ROLE.length;action({type:'select',role:ROLE[next]});}
+ let secretTapCount=0,unlockingSecret=false,secretPopupTimer=null;
+ function showSecretPopup(){
+  const hint=$('secretHint');if(!hint)return;
+  hint.textContent='Give me five！';hint.hidden=false;
+  clearTimeout(secretPopupTimer);
+  secretPopupTimer=setTimeout(()=>{hint.hidden=true;},2600);
+ }
+ async function tapSecretQuestion(){
+  if(!state||state.phase!=='lobby'||me()?.kind!=='human'||me()?.role!=='?'||!SECRET_ROLE||state.secretUnlocked)return;
+  secretTapCount++;
+  if(secretTapCount<5||unlockingSecret)return;
+  secretTapCount=0;unlockingSecret=true;
+  // Reuse the existing sound-toggle confirmation sound exactly, even when
+  // goal music is muted, just as the sound toggle itself does.
+  playToggleClick();
+  const result=await action({type:'unlock-secret'});
+  unlockingSecret=false;
+  if(result)showSecretPopup();
+ }
+ $('myToken').addEventListener('click',tapSecretQuestion);
+ $('myToken').addEventListener('keydown',event=>{
+  if((event.key==='Enter'||event.key===' ')&&me()?.role==='?'){
+   event.preventDefault();void tapSecretQuestion();
+  }
+ });
+ function changeRole(delta){
+  if(!state||state.phase!=='lobby')return;
+  const options=humanRoleChoices();
+  const idx=options.indexOf(me()?.role);
+  const next=((idx<0?0:idx)+delta+options.length)%options.length;
+  secretTapCount=0;
+  action({type:'select',role:options[next]});
+ }
 $('prevRole').onclick=()=>changeRole(-1);$('nextRole').onclick=()=>changeRole(1);
 $('botCount').onchange=e=>action({type:'bots',count:Number(e.target.value)});
 $('startGame').onclick=async()=>{

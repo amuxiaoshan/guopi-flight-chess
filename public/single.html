@@ -99,6 +99,10 @@ input,select{font-size:16px}
 .rank-detail .rank-line small{color:#8a8f96}
 .textbutton.resume-seat{align-self:center;padding:9px 12px;color:#557a93;text-decoration:underline;text-underline-offset:3px}
 .textbutton.settle-now{color:#8e7782}
+/* Secret unlock hint matches the online styling. */
+.secretHint{align-self:center;width:max-content;max-width:95%;font-size:13px;line-height:1.5;margin:1px auto 9px;padding:7px 15px;border-radius:11px;color:#546880;background:#f3f7fb;border:1px solid #dce8f3;box-shadow:0 4px 16px #637a9815;animation:secretHintAppear .2s ease-out}
+.secretHint[hidden]{display:none!important}
+@keyframes secretHintAppear{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
 </style></head>
 <body><main>
 <section id="welcome" class="screen active">
@@ -118,7 +122,7 @@ input,select{font-size:16px}
  <header class="nav"><button id="exitLobby" class="back" aria-label="返回">‹</button><strong>游戏准备</strong><span class="navfiller"></span></header>
  <div class="roommeta"><div><small>房间号码</small><strong id="codeText">------</strong></div><button id="copyInvite" class="secondary small">复制邀请链接</button></div>
  <div class="shareSettings" id="shareSettings" hidden><label for="lanAddress">手机同 Wi-Fi 邀请地址</label><select id="lanAddress" aria-label="选择电脑的局域网地址"></select><p id="networkHint" class="sub"></p></div>
- <div class="caption">我的角色</div><div class="rolechooser"><button id="prevRole" class="arrow">‹</button><div class="largeToken" id="myToken">?</div><button id="nextRole" class="arrow">›</button></div><p id="myRole" class="center hint">随机角色</p>
+ <div class="caption">我的角色</div><div class="rolechooser"><button id="prevRole" class="arrow">‹</button><div class="largeToken" id="myToken">?</div><button id="nextRole" class="arrow">›</button></div><p id="myRole" class="center hint">随机角色</p><div id="secretHint" class="secretHint" role="status" aria-live="polite" hidden>Give me five！</div>
  <div class="caption">我的棋子外框颜色</div><div id="myColors" class="colors"></div>
  <div class="caption spaced">本局座位</div><div id="seats" class="seats"></div>
  <div id="botControl" class="botcontrols"><div class="botheader"><strong>电脑设置</strong><label>数量 <select id="botCount"></select></label></div><div id="botEditors"></div></div>
@@ -160,7 +164,9 @@ input,select{font-size:16px}
 (function(){
 'use strict';
 const colors = ['blue','yellow','green','red'];
-const roles = ['A','B','C','D','E','F','G','H'];
+const roles=Object.keys(globalThis.GAME_CONTENT.characters).filter(id=>!globalThis.GAME_CONTENT.characters[id].secret);
+const GAME_CONTENT=globalThis.GAME_CONTENT;
+const SECRET_ROLE=Object.entries(GAME_CONTENT.characters).find(([id,item])=>item.secret&&item.humanOnly)?.[0]||null;
 const roleNames=Object.fromEntries(Object.entries(globalThis.GAME_CONTENT.characters).map(([id,data])=>[id,data.name]));
 const roleName=role=>roleNames[role]||'随机角色';
 // Choose one authoritative line for each collision. Newlines only format long lines.
@@ -262,7 +268,7 @@ function legalMove(r,p,pieceId){
 function publicState(room,viewer){
   const me=room.players.find(p=>p.token===viewer);
   return {code:room.code,phase:room.phase,roundPhase:room.roundPhase,host:room.host===viewer,hostAwayUntil:room.hostAwaySince?room.hostAwaySince+HOST_TRANSFER_DELAY_MS:null,
-    viewerColor:me?me.color:null,viewerName:me?me.name:null,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
+    viewerColor:me?me.color:null,viewerName:me?me.name:null,secretUnlocked:!!me?.secretUnlocked,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
     players:room.players.map(p=>({color:p.color,role:p.role,name:p.name,kind:p.kind,pieces:p.pieces,finished:p.finished,auto:!!p.auto,connected:p.kind==='ai'||p.connections>0})),
     finishOrder:room.finishOrder,vote:room.vote?{id:room.vote.id,agreed:room.players.filter(p=>p.kind==='human'&&!p.auto&&room.vote.responses[p.color]===true).length,required:room.players.filter(p=>p.kind==='human'&&!p.auto).length,myVote:me&&Object.hasOwn(room.vote.responses,me.color)?room.vote.responses[me.color]:null}:null,voteHandled:!!room.voteHandled,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
     note:room.note,canStart:room.phase==='lobby'&&room.players.length+room.bots.length>=2};
@@ -506,9 +512,19 @@ function handleAction(data){
     settleMatch(r,'本局提前结束，按当前进度结算');
     return {ok:true};
   }
+  if(type==='unlock-secret'){
+    if(r.phase!=='lobby'||p.kind!=='human'||!SECRET_ROLE)fail('现在无法解锁隐藏角色');
+    p.secretUnlocked=true;
+    publish(r);return {ok:true};
+  }
   if(type==='select'){
     if(r.phase!=='lobby')fail('开局后不能切换角色或颜色');
-    if(typeof data.role==='string'&& (data.role==='?'||roles.includes(data.role)))p.role=data.role;
+    if(typeof data.role==='string'){
+       if(data.role===SECRET_ROLE){
+         if(p.kind!=='human'||!p.secretUnlocked)fail('需要先解锁隐藏角色');
+         p.role=SECRET_ROLE;
+       }else if(data.role==='?'||roles.includes(data.role))p.role=data.role;
+     }
     if(data.color!==undefined){const c=Number(data.color);if(!Number.isInteger(c)||c<0||c>3)fail('无效颜色');if(r.players.some(x=>x!==p&&x.color===c))fail('该颜色已被其他真人玩家选择');p.color=c;arrangeBots(r);}
     publish(r);return {ok:true};
   }
@@ -630,7 +646,9 @@ function applyPackUI(){
 }
 applyPackUI();
 
-const ROLE=['?',...Object.keys(ROLE_INFO)];
+const SECRET_ROLE=Object.entries(ROLE_INFO).find(([id,info])=>info.secret&&info.humanOnly)?.[0]||null;
+const ROLE=['?',...Object.keys(ROLE_INFO).filter(id=>!ROLE_INFO[id].secret)];
+const humanRoleChoices=()=>state?.secretUnlocked&&SECRET_ROLE?[...ROLE,SECRET_ROLE]:ROLE;
 const displayRole=role=>ROLE_INFO[role]?.name||'随机角色';
 const roleMark=role=>ROLE_INFO[role]?.mark||'?';
 const COLOR=[
@@ -971,7 +989,7 @@ function receive(next){
  if(next.seq<=lastSequence)return;
  const first=lastSequence<0;
  state=next;lastSequence=next.seq;
- if(first){roleIndex=Math.max(0,ROLE.indexOf(me()?.role??'?'));}
+ if(first){roleIndex=Math.max(0,humanRoleChoices().indexOf(me()?.role??'?'));}
  if(next.phase==='lobby'){syncVotePrompt();screen('lobby');renderLobby();prepareLanAddresses();return;}
  if(next.phase==='playing'){screen('game');renderGame();syncVotePrompt();}
  if(next.phase==='over'){
@@ -992,8 +1010,11 @@ function renderLobby(){
  $('codeText').textContent=state.code;
  renderShareSettings();
  const self=me();if(!self)return;
- roleIndex=Math.max(0,ROLE.indexOf(self.role));
- $('myToken').textContent=roleMark(self.role);
+ roleIndex=Math.max(0,humanRoleChoices().indexOf(self.role));
+  $('myToken').textContent=roleMark(self.role);
+  $('myToken').style.cursor=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?'pointer':'default';
+  $('myToken').setAttribute('role','button');
+  $('myToken').tabIndex=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?0:-1;
  $('myToken').style.borderColor=COLOR[self.color].hex;
  $('myRole').textContent=self.role==='?'?'随机角色':displayRole(self.role);
  const used=state.players.filter(p=>p.kind==='human'&&p.color!==self.color).map(p=>p.color);
@@ -1024,7 +1045,39 @@ function renderLobby(){
   $('botEditors').querySelectorAll('[data-color-index]').forEach(el=>el.onchange=()=>action({type:'bot-config',index:Number(el.dataset.colorIndex),color:Number(el.value)}));
  }
 }
-function changeRole(delta){if(!state||state.phase!=='lobby')return;const idx=ROLE.indexOf(me().role);const next=(idx+delta+ROLE.length)%ROLE.length;action({type:'select',role:ROLE[next]});}
+ let secretTapCount=0,unlockingSecret=false,secretPopupTimer=null;
+ function showSecretPopup(){
+  const hint=$('secretHint');if(!hint)return;
+  hint.textContent='Give me five！';hint.hidden=false;
+  clearTimeout(secretPopupTimer);
+  secretPopupTimer=setTimeout(()=>{hint.hidden=true;},2600);
+ }
+ async function tapSecretQuestion(){
+  if(!state||state.phase!=='lobby'||me()?.kind!=='human'||me()?.role!=='?'||!SECRET_ROLE||state.secretUnlocked)return;
+  secretTapCount++;
+  if(secretTapCount<5||unlockingSecret)return;
+  secretTapCount=0;unlockingSecret=true;
+  // Reuse the existing sound-toggle confirmation sound exactly, even when
+  // goal music is muted, just as the sound toggle itself does.
+  playToggleClick();
+  const result=await action({type:'unlock-secret'});
+  unlockingSecret=false;
+  if(result)showSecretPopup();
+ }
+ $('myToken').addEventListener('click',tapSecretQuestion);
+ $('myToken').addEventListener('keydown',event=>{
+  if((event.key==='Enter'||event.key===' ')&&me()?.role==='?'){
+   event.preventDefault();void tapSecretQuestion();
+  }
+ });
+ function changeRole(delta){
+  if(!state||state.phase!=='lobby')return;
+  const options=humanRoleChoices();
+  const idx=options.indexOf(me()?.role);
+  const next=((idx<0?0:idx)+delta+options.length)%options.length;
+  secretTapCount=0;
+  action({type:'select',role:options[next]});
+ }
 $('prevRole').onclick=()=>changeRole(-1);$('nextRole').onclick=()=>changeRole(1);
 $('botCount').onchange=e=>action({type:'bots',count:Number(e.target.value)});
 $('startGame').onclick=async()=>{

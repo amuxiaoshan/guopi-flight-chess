@@ -29,7 +29,8 @@ function localAddresses(){
 }
 
 const colors = ['blue','yellow','green','red'];
-const roles = ['A','B','C','D','E','F','G','H'];
+const roles=Object.keys(GAME_CONTENT.characters).filter(id=>!GAME_CONTENT.characters[id].secret);
+const SECRET_ROLE=Object.entries(GAME_CONTENT.characters).find(([id,item])=>item.secret&&item.humanOnly)?.[0]||null;
 const roleNames=Object.fromEntries(Object.entries(GAME_CONTENT.characters).map(([id,data])=>[id,data.name]));
 const roleName = role => roleNames[role] || role;
 // Choose one authoritative line for each collision. Newlines only format long lines.
@@ -131,7 +132,7 @@ function publicState(room,viewer){
   const me=room.players.find(p=>p.token===viewer);
   return {code:room.code,phase:room.phase,roundPhase:room.roundPhase,host:room.host===viewer,hostAwayUntil:room.hostAwaySince?room.hostAwaySince+HOST_TRANSFER_DELAY_MS:null,
     hostColor:room.players.find(p=>p.token===room.host)?.color??null,closeReason:room.closeReason||null,
-    viewerColor:me?me.color:null,viewerName:me?me.name:null,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
+    viewerColor:me?me.color:null,viewerName:me?me.name:null,secretUnlocked:!!me?.secretUnlocked,turn:room.turn,die:room.die,options:room.options,botCount:room.botCount,bots:room.phase==='lobby'?room.bots:[],mode:room.mode,
     players:room.players.map(p=>({color:p.color,role:p.role,name:p.name,kind:p.kind,pieces:p.pieces,finished:p.finished,auto:!!p.auto,connected:p.kind==='ai'||p.connections>0})),
     finishOrder:room.finishOrder,vote:room.vote?{id:room.vote.id,agreed:room.players.filter(p=>p.kind==='human'&&!p.auto&&room.vote.responses[p.color]===true).length,required:room.players.filter(p=>p.kind==='human'&&!p.auto).length,myVote:me&&Object.hasOwn(room.vote.responses,me.color)?room.vote.responses[me.color]:null}:null,voteHandled:!!room.voteHandled,seq:room.seq,lastMove:room.lastMove,lastRoll:room.lastRoll,
     note:room.note,canStart:room.phase==='lobby'&&room.players.length+room.bots.length>=2};
@@ -412,9 +413,19 @@ function handleAction(data){
     settleMatch(r,'本局提前结束，按当前进度结算');
     return {ok:true};
   }
+  if(type==='unlock-secret'){
+    if(r.phase!=='lobby'||p.kind!=='human'||!SECRET_ROLE)fail('现在无法解锁隐藏角色');
+    p.secretUnlocked=true;
+    publish(r);return {ok:true};
+  }
   if(type==='select'){
     if(r.phase!=='lobby')fail('开局后不能切换角色或颜色');
-    if(typeof data.role==='string'&& (data.role==='?'||roles.includes(data.role)))p.role=data.role;
+    if(typeof data.role==='string'){
+       if(data.role===SECRET_ROLE){
+         if(p.kind!=='human'||!p.secretUnlocked)fail('需要先解锁隐藏角色');
+         p.role=SECRET_ROLE;
+       }else if(data.role==='?'||roles.includes(data.role))p.role=data.role;
+     }
     if(data.color!==undefined){const c=Number(data.color);if(!Number.isInteger(c)||c<0||c>3)fail('无效颜色');if(r.players.some(x=>x!==p&&x.color===c))fail('该颜色已被其他真人玩家选择');p.color=c;arrangeBots(r);}
     publish(r);return {ok:true};
   }

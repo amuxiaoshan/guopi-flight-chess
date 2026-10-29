@@ -98,3 +98,11 @@ input,select{font-size:16px}
 .rank-detail .rank-line small{color:#8a8f96}
 .textbutton.resume-seat{align-self:center;padding:9px 12px;color:#557a93;text-decoration:underline;text-underline-offset:3px}
 .textbutton.settle-now{color:#8e7782}
+
+/* Subtle five-tap reward: appears under the role selector, not over gameplay. */
+.secretHint{align-self:center;width:max-content;max-width:95%;font-size:13px;line-height:1.5;
+  margin:1px auto 9px;padding:7px 15px;border-radius:11px;
+  color:#546880;background:#f3f7fb;border:1px solid #dce8f3;
+  box-shadow:0 4px 16px #637a9815;animation:secretHintAppear .2s ease-out;}
+.secretHint[hidden]{display:none!important}
+@keyframes secretHintAppear{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
