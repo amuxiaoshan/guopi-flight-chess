@@ -40,7 +40,13 @@ def file_replace(path, source):
 
 def validate(pack,id):
     if pack.get("id")!=id: raise ValueError("pack.id must match folder name")
-    if sorted(pack["characters"])!=PACK_IDS: raise ValueError("Character IDs must be exactly A-H")
+    roster=set(pack["characters"])
+    if not set(PACK_IDS).issubset(roster): raise ValueError("Characters A-H are required")
+    extra=roster-set(PACK_IDS)
+    if extra and (extra!={"I"} or pack["characters"]["I"].get("secret") is not True or pack["characters"]["I"].get("humanOnly") is not True):
+        raise ValueError("Optional secret slot I must be human-only")
+    if extra and list(pack["characters"])[-1]!="I":
+        raise ValueError("Secret slot I must be last in the character roster")
     if len(pack["teams"])!=4: raise ValueError("Exactly 4 team styles required")
     if [x["key"] for x in pack["teams"]] != ["blue","yellow","green","red"]:
         raise ValueError("Team colors must keep board-order blue/yellow/green/red")
