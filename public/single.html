@@ -673,7 +673,12 @@ const displayRole=role=>ROLE_INFO[role]?.name||'随机角色';
 const roleMark=role=>ROLE_INFO[role]?.mark||'?';
 const roleTokenMarkup=role=>{
  const art=ROLE_INFO[role]?.pieceImage;
- return art?`<img class="role-art" src="${escapeHTML(art)}" alt="" draggable="false">`:escapeHTML(roleMark(role));
+ return art?`<img class="role-art" src="${escapeHTML(art)}" alt="" draggable="false" style="--art-offset-y:${(roleArtOffsetY(role)/PIECE_REST_DIAMETER*100).toFixed(3)}%">`:escapeHTML(roleMark(role));
+};
+// Per-character image placement, stored in the OC pack, measured against a 60-unit token.
+const roleArtOffsetY=role=>{
+ const delta=Number(ROLE_INFO[role]?.artOffsetY)||0;
+ return Math.max(-10,Math.min(10,delta));
 };
 const roleTokenStyle=color=>`--color:${COLOR[color].hex};--piece-base:${GAME_CONTENT.teams[color].base};--piece-edge:${GAME_CONTENT.teams[color].edge}`;
 const COLOR=[
@@ -1210,7 +1215,7 @@ function drawPieces(){
    // Popoya's original PNG and its pre-existing white outline are untouched.
    const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed&&!movingPiece?3.5:4);
    svg('circle',{r:discRadius,fill:tone.base,stroke:tone.edge,'stroke-width':rim},sprite);
-   svg('image',{href:ROLE_INFO[p.role].pieceImage,x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},sprite);
+   svg('image',{href:ROLE_INFO[p.role].pieceImage,x:-artRadius,y:-artRadius+roleArtOffsetY(p.role)*(radius/(restSize/2)),width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},sprite);
   }else{
    svg('circle',{r:radius,fill:tone.base,stroke:tone.edge,'stroke-width':border},sprite);
    const letter=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':fontSize,fill:'#272a30'},sprite);letter.textContent=roleMark(p.role);
