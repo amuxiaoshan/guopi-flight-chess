@@ -83,6 +83,14 @@
         "不好意思。",
         "我下次注意。"
       ]
+    },
+    "I": {
+      "name": "瓦塞",
+      "mark": "瓦",
+      "pieceImage": null,
+      "collision": [],
+      "secret": true,
+      "humanOnly": true
     }
   },
   "teams": [
