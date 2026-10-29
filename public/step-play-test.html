@@ -465,10 +465,15 @@ function performMove(room,p,id){
 const ROLL_REVEAL_MS=3350;
 function roll(room,p){
   if(room.phase!=='playing'||room.roundPhase!=='roll'||room.turn!==p.color)fail('还没有轮到你掷骰');
-  const n=1+rand(6);room.die=n;room.lastRoll={seq:room.seq+1,color:p.color,value:n};
-  const rollSeq=room.lastRoll.seq;
+  const n=1+rand(6);room.die=n;
   room.sixStreak=n===6?room.sixStreak+1:0;
   const overSix=room.sixStreak>=3;
+  // Preserve the original locations for the client until the third six is visibly revealed.
+  // Do not fly pieces that are already at home or have reached the goal.
+  const returns=overSix?p.pieces.flatMap((pos,piece)=>pos!==-1&&pos!==GOAL
+    ?[{color:p.color,piece,from:pos}]:[]):[];
+  room.lastRoll={seq:room.seq+1,color:p.color,value:n,...(overSix?{returns}: {})};
+  const rollSeq=room.lastRoll.seq;
   if(overSix)p.pieces=p.pieces.map(v=>v===GOAL?GOAL:-1);
   room.options=overSix?[]:available(p,n);
   const resultNote=overSix?`${p.name} 连续三次掷出 6，未完成棋子回基地`:
