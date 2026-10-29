@@ -34,21 +34,14 @@ const SECRET_ROLE=Object.entries(GAME_CONTENT.characters).find(([id,item])=>item
         "viewerColor:me?me.color:null,viewerName:me?me.name:null,",
         "viewerColor:me?me.color:null,viewerName:me?me.name:null,secretUnlocked:!!me?.secretUnlocked,",
         "viewer private unlock state")
-    selector="""   if(type==='select'){
-     if(r.phase!=='lobby')fail('开局后不能切换角色或颜色');
-     if(typeof data.role==='string'&& (data.role==='?'||roles.includes(data.role)))p.role=data.role;"""
-    if selector not in source:
-        # Offline copy has the same server code with slightly different indent?
-        line="     if(typeof data.role==='string'&& (data.role==='?'||roles.includes(data.role)))p.role=data.role;"
-        if line not in source: raise RuntimeError('engine select condition missing')
     source=once(source,
-        "   if(type==='select'){",
-        """   if(type==='unlock-secret'){
-     if(r.phase!=='lobby'||p.kind!=='human'||!SECRET_ROLE)fail('现在无法解锁隐藏角色');
-     p.secretUnlocked=true;
-     publish(r);return {ok:true};
-   }
-   if(type==='select'){""",
+        "  if(type==='select'){",
+        """  if(type==='unlock-secret'){
+    if(r.phase!=='lobby'||p.kind!=='human'||!SECRET_ROLE)fail('现在无法解锁隐藏角色');
+    p.secretUnlocked=true;
+    publish(r);return {ok:true};
+  }
+  if(type==='select'){""",
         "engine secret unlock action")
     source=once(source,
         "if(typeof data.role==='string'&& (data.role==='?'||roles.includes(data.role)))p.role=data.role;",
