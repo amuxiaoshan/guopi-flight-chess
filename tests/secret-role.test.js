@@ -72,6 +72,6 @@ try{
   const state=handleAction({...ctx,type:'state'}).state;
   assert.equal(state.players.find(p=>p.kind==='human').role,secretId);
   assert.notEqual(state.players.find(p=>p.kind==='ai').role,secretId);
- }finally{rooms.delete(fresh.code);}
-}finally{rooms.delete(r.code);}
+ }finally{const room=rooms.get(fresh.code);if(room)room.phase='over';rooms.delete(fresh.code);}
+}finally{const room=rooms.get(r.code);if(room)room.phase='over';rooms.delete(r.code);}
 console.log('PASS: five-tap UI, online/offline unlock, human-only role, bots excluded, random excluded');
