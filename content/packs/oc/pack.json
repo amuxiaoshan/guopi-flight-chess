@@ -87,14 +87,15 @@
     "I": {
       "name": "瓦塞",
       "mark": "瓦",
-      "pieceImage": "assets/wase-original.png",
+      "pieceImage": null,
       "collision": [
         "撞飞咯~",
         "回家恰饭呐！",
         "嚯！(꜆꜄꜆˙꒳˙)꜆꜄꜆"
       ],
       "secret": true,
-      "humanOnly": true
+      "humanOnly": true,
+      "pieceImagePending": "assets/wase-original.png"
     }
   },
   "teams": [
