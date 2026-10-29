@@ -1,0 +1,74 @@
+name: Build selected OC content pack
+
+on:
+  push:
+    paths:
+      - 'content/**'
+      - 'scripts/build-content-pack.py'
+      - '.github/workflows/build-content-pack.yml'
+  workflow_dispatch:
+    inputs:
+      pack:
+        description: 'Select the content pack'
+        required: true
+        default: 'oc'
+        type: choice
+        options:
+          - oc
+          - example
+
+permissions:
+  contents: write
+
+concurrency:
+  group: content-pack-build
+  cancel-in-progress: false
+
+jobs:
+  build-content:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Generate content pack for online and standalone offline editions
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python3 scripts/build-content-pack.py --use "${{ inputs.pack }}"
+          else
+            python3 scripts/build-content-pack.py
+          fi
+      - name: Validate game syntax
+        run: |
+          node --check server.js
+          node --check public/app.js
+          node --check public/content-pack.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for name in ('single.html',):
+              source=(Path('public')/name).read_text(encoding='utf-8')
+              scripts=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',source,re.S)
+              assert len(scripts)>=2
+              for i,s in enumerate(scripts):
+                  Path(f'/tmp/{name}-{i}.js').write_text(s,encoding='utf-8')
+          PY
+          for f in /tmp/single.html-*.js; do node --check "$f"; done
+      - name: Check goal passing and token styles
+        run: |
+          node tests/goal-pass-through.test.js
+          node tests/piece-palette.test.js
+      - name: Verify content pack idempotence
+        run: |
+          python3 scripts/build-content-pack.py
+          git diff --check
+      - name: Commit generated files and original artwork copy
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A content public/content-pack.js public/content/assets public/app.js public/single.html public/index.html server.js
+          if ! git diff --cached --quiet; then
+            git commit -m "Compile selected OC content pack for online and offline games"
+            git push
+          fi
