@@ -14,9 +14,8 @@
 .boardselection{font-size:13px;line-height:1.5;text-align:left;color:#747982;padding:8px 2px 0;white-space:nowrap}
 .boardselection strong{font-weight:700;color:var(--selected-color,#747982);text-shadow:0 1px 1px #00000014}
 .boardselection + .gametext{margin-top:10px}
-.bubble{position:absolute;display:none;z-index:3;max-width:min(230px,76%);background:#fffdfc;border:2px solid var(--bubble-color,#ef7872);border-radius:13px;padding:10px 13px;font-size:13px;line-height:1.55;color:#30323a;text-align:center;white-space:pre-line;overflow-wrap:anywhere;transform:translate(-50%,calc(-100% - 15px));pointer-events:none;box-shadow:0 7px 22px #3e30301c;backdrop-filter:blur(4px)}
-.bubble::after{content:"";position:absolute;bottom:-9px;left:calc(50% - 7px);width:13px;height:13px;transform:rotate(45deg);background:#fffdfc;border-right:2px solid var(--bubble-color,#ef7872);border-bottom:2px solid var(--bubble-color,#ef7872)}
-.bubble.below{transform:translate(-50%,15px)}
+.bubble{position:absolute;display:none;z-index:3;max-width:min(230px,76%);background:#fffdfc;border:2px solid var(--bubble-color,#ef7872);border-radius:13px;padding:10px 13px;font-size:13px;line-height:1.55;color:#30323a;text-align:center;white-space:pre-line;overflow-wrap:anywhere;pointer-events:none;box-shadow:0 7px 22px #3e30301c;backdrop-filter:blur(4px)}
+.bubble::after{content:"";position:absolute;bottom:-9px;left:calc(var(--bubble-arrow-x,50%) - 7px);width:13px;height:13px;transform:rotate(45deg);background:#fffdfc;border-right:2px solid var(--bubble-color,#ef7872);border-bottom:2px solid var(--bubble-color,#ef7872)}
 .bubble.below::after{top:-9px;bottom:auto;transform:rotate(225deg)}.gametext{text-align:center;min-height:58px;margin-top:17px;display:flex;flex-direction:column;gap:4px}.gametext strong{font-size:15px;font-weight:550}.gametext small{font-size:12px;color:#999}.dicearea{margin:auto auto 26px;display:flex;flex-direction:column;align-items:center;gap:14px;perspective:650px}.dice{background:transparent;width:87px;height:87px;display:grid;place-items:center;perspective:650px;position:relative}.cube{display:block;position:relative;width:62px;height:62px;transform-style:preserve-3d;z-index:1}.dice.pivoting::after{content:'';position:absolute;left:50%;top:calc(50% + 32px);width:25px;height:8px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(ellipse,#28313c35 0%,#28313c12 48%,transparent 76%);pointer-events:none}.face{position:absolute;inset:0;border-radius:10px;background:#fff;border:1px solid #d3d6dc;box-shadow:inset -4px -4px 8px #00000012;backface-visibility:hidden}.front{transform:translateZ(31px)}.back{transform:rotateY(180deg) translateZ(31px)}.right{transform:rotateY(90deg) translateZ(31px)}.left{transform:rotateY(-90deg) translateZ(31px)}.top{transform:rotateX(90deg) translateZ(31px)}.face.bottom{transform:rotateX(-90deg) translateZ(31px)}.pip{position:absolute;width:10px;height:10px;background:#33373d;border-radius:50%;transform:translate(-50%,-50%)}.bottomgame{text-align:center;margin-bottom:15px}
 .result{align-items:center;justify-content:flex-start;padding-top:max(38px,calc(env(safe-area-inset-top) + 34px));padding-bottom:max(16px,env(safe-area-inset-bottom));overflow-y:auto}
 .result h2{font-weight:500;letter-spacing:.2em;margin:0;font-size:29px}
@@ -957,7 +956,10 @@ async function action(payload){
  }catch(e){toast(e.message);return null;}
 }
 function resetConnection(){cancelDiceSpin();stopDiceShake();OfflineEngine.unsubscribe();animationSerial++;rollSerial++;state=null;lastSequence=-1;lastMoveSeq=-1;lastRollSeq=-1;animPiece=null;clearCaptureFlights();}
-function home(){resetConnection();OfflineEngine.clear();code='';authToken='';myRoomMode='';screen('welcome');refreshReturnSeat();}
+function home(){resetConnection();
+ if(voteFadeTimer){clearTimeout(voteFadeTimer);voteFadeTimer=null;}
+ const prompt=$('continuePrompt');prompt.classList.remove('open');prompt.setAttribute('aria-hidden','true');
+ $('dialog').classList.remove('open');$('bubble').style.display='none';activeCaptureBubble=null;OfflineEngine.clear();code='';authToken='';myRoomMode='';screen('welcome');refreshReturnSeat();}
 function connect(){resetConnection();OfflineEngine.subscribe(next=>receive(next));}
 async function enter(mode){const result=await action({type:'create',name:$('nickname').value,mode});if(!result)return;code=result.code;authToken=result.token;myRoomMode=mode;connect();if(result.state)receive(result.state);}
 function join(){if(savedReturnSeat()?.code===$('joinCode').value.toUpperCase().trim())resumeSavedSeat();else toast('离线版不能加入多人房间');}
@@ -1018,7 +1020,7 @@ function syncVotePrompt(){
  }
  const winner=state.players.find(p=>p.color===state.finishOrder[0]);
  $('continueTitle').textContent=`第一名：${winner?winner.role==='?'?winner.name:displayRole(winner.role):'已产生'}`;
- $('continueText').textContent=isSoloMode()?'是否继续观看剩余比赛？继续则由剩余电脑完成比赛；退出则结束本局。':'是否继续观看剩余比赛？愿意留下的真人全部同意即可继续；不愿继续可以退出，电脑会接管棋子，之后仍可返回。电脑不投票。';
+ $('continueText').textContent=isSoloMode()?'是否继续观看剩余比赛？退出则按当前进度结算并显示排名。':'是否继续观看剩余比赛？愿意留下的真人全部同意即可继续；不愿继续可以退出，电脑会接管棋子，之后仍可返回。电脑不投票。';
  $('continueNo').textContent=isSoloMode()?'退出比赛':'退出房间（电脑接管）';
  $('continueProgress').textContent=`已同意 ${v.agreed}/${v.required} 人 · 等待其余真人玩家选择`;
  $('continueYes').disabled=v.myVote===true;
@@ -1033,7 +1035,7 @@ function syncVotePrompt(){
  }
 }
 $('continueYes').onclick=()=>action({type:'vote',agree:true});
-$('continueNo').onclick=()=>leaveRoom(); // Disagreeing exits only this seat; the others keep playing.
+$('continueNo').onclick=()=>isSoloMode()?action({type:'vote',agree:false}):leaveRoom(); // Solo settles; multiplayer exits.
 $('settleNow').onclick=()=>dialog('提前结算比赛？','将按已到终点的棋子数量、再按最近的棋子距终点的格数排列名次。这个操作会结束所有人的当前比赛。',()=>action({type:'end-early'}));
 function showRankDetails(){
  const order=state?.finishOrder||[];
@@ -1416,8 +1418,42 @@ async function animateRoll(n){
  // The server still holds this face on screen before progressing.
  $('diceStatus').textContent=`${n} 点`;
 }
+// Place the dialogue tip over the actual rendered speaker, not the clamped board center.
+let activeCaptureBubble=null;
+function placeCaptureBubble(){
+ if(!activeCaptureBubble)return;
+ const bubble=$('bubble'),pieces=$('pieces'),board=pieces.parentElement;
+ const token=pieces.querySelector('[data-color="'+activeCaptureBubble.color+'"][data-piece="'+activeCaptureBubble.piece+'"]');
+ if(!token)return;
+ const br=board.getBoundingClientRect(),pr=token.getBoundingClientRect();
+ if(!br.width||!br.height)return;
+ bubble.classList.remove('below');
+ bubble.style.left='0px';bubble.style.top='0px';
+ bubble.style.display='block';bubble.style.visibility='hidden';
+ const width=bubble.offsetWidth,height=bubble.offsetHeight;
+ const speakerX=(pr.left+pr.right)/2-br.left;
+ const speakerTop=pr.top-br.top,speakerBottom=pr.bottom-br.top;
+ const vw=window.innerWidth||document.documentElement.clientWidth;
+ const vh=window.innerHeight||document.documentElement.clientHeight;
+ const leftEdge=Math.max(8,8-br.left),rightEdge=Math.min(br.width-8,vw-br.left-8);
+ const left=Math.max(leftEdge,Math.min(speakerX-width/2,Math.max(leftEdge,rightEdge-width)));
+ const arrowX=Math.max(16,Math.min(width-16,speakerX-left));
+ const topEdge=Math.max(8,8-br.top),bottomEdge=Math.min(br.height-8,vh-br.top-8),gap=11;
+ const aboveFits=speakerTop-gap-height>=topEdge;
+ const belowFits=speakerBottom+gap+height<=bottomEdge;
+ const below=!aboveFits&&(belowFits||bottomEdge-speakerBottom>speakerTop-topEdge);
+ let top=below?speakerBottom+gap:speakerTop-gap-height;
+ if(below)top=Math.min(top,Math.max(topEdge,bottomEdge-height));
+ else top=Math.max(topEdge,top);
+ bubble.classList.toggle('below',below);
+ bubble.style.left=left+'px';bubble.style.top=top+'px';
+ bubble.style.setProperty('--bubble-arrow-x',arrowX+'px');
+ bubble.style.visibility='visible';
+}
+window.addEventListener('resize',()=>{if(activeCaptureBubble)placeCaptureBubble();});
+
 async function animateMove(move){
- $('bubble').style.display='none';
+ $('bubble').style.display='none';activeCaptureBubble=null;
  const mine=++animationSerial;
  clearCaptureFlights();
  captureFlights=(move.captures||[]).map(c=>({...c,phase:'waiting',animation:null}));
@@ -1438,13 +1474,14 @@ async function animateMove(move){
  if(mine!==animationSerial)return;
  pieceLanding={color:move.color,id:move.piece};animPiece=null;drawPieces();pieceLanding=null;
  if(move.hit&&move.dialogue){
-  const [x,y]=point(move.color,move.path.at(-1).pos,move.piece),b=$('bubble');
+  const b=$('bubble');
   b.textContent=move.dialogue;
   b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');
-  b.style.left=Math.max(35,Math.min(65,5+x/900*90))+'%';
-  b.style.top=(5+y/900*90)+'%';
-  b.classList.toggle('below',y<190);b.style.display='block';
-  setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);
+  activeCaptureBubble={color:move.color,piece:move.piece};
+  placeCaptureBubble();
+  setTimeout(()=>{if(mine===animationSerial){
+   b.style.display='none';activeCaptureBubble=null;
+  }},2700);
  }
 }
 
