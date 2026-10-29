@@ -55,6 +55,12 @@ def validate(pack,id):
             raise ValueError("Every character needs a name and token mark")
         if not isinstance(c.get("collision",[]),list) or not all(isinstance(x,str) for x in c["collision"]):
             raise ValueError("Invalid collision lines")
+        special=c.get("collisionTargets",{})
+        if not isinstance(special,dict) or any(
+            target not in roster or not isinstance(line,str) or not line.strip()
+            for target,line in special.items()
+        ):
+            raise ValueError("Invalid target-specific collision lines")
     for t in pack["teams"]:
         for field in ("base","edge","ui"):
             if not re.fullmatch(r"#[0-9a-fA-F]{6}",t[field]):raise ValueError("Bad color "+field)
