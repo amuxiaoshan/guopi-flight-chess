@@ -11,7 +11,11 @@ const expected={
  A:{B:'下次要多加注意哦，澄。',D:'抱歉麦冬——下次慢一些？',C:'注意背后~'},
  B:{A:'抱歉阿禾，我就先走一步咯！',D:'嘿！抓到麦冬了！'},
  D:{A:'抱歉啊，这儿我先收下啦。',B:'好机会！下次记得瞧着点(●´∀)σ',C:'不好意思哥，你再多逛一圈吧！'},
- C:{A:'你还不够谨慎。',D:'麦冬，多注意点。'}
+ C:{A:'你还不够谨慎。',D:'麦冬，多注意点。'},
+ E:{G:'我要先走一步借过一下咯！',F:'嘿麻特！看我表演弯道超车！',H:'这次斗殴是我赢了！(`▽´๑)'},
+ G:{E:'注意注意——bong！',F:'抱歉啦，回头给你买点芥菜',H:'呃……多多锻炼身体好！'},
+ F:{G:'回去的路上多拍点照片。',E:'回去玩你的车去吧。',H:'我这次的骰点姑且算成功。'},
+ H:{E:'劳烦你多跑一圈。',F:'不小心踩着芥末滑倒了。',G:'你钱掉了。骗你的。'}
 };
 const selfExpected={
  A:'你是……真奇怪呢。',
@@ -27,7 +31,7 @@ assert.equal(Object.keys(selfExpected).length,8);
 for(const [actor,line] of Object.entries(selfExpected))
  assert.equal(pack.characters[actor].collisionSelf,line,'self collision pack '+actor);
 
-assert.equal(Object.values(expected).reduce((n,obj)=>n+Object.keys(obj).length,0),10);
+assert.equal(Object.values(expected).reduce((n,obj)=>n+Object.keys(obj).length,0),22);
 for(const [actor,targets] of Object.entries(expected))
  assert.deepEqual(pack.characters[actor].collisionTargets,targets);
 
@@ -121,4 +125,4 @@ for(const file of ['server.js','public/single.html']){
  assert.deepEqual(Array.from(caught),['H','D']);
  assert.equal(collisionLine('A',caught),expected.A.D,label+'prioritize any valid targeted relationship');
 }
-console.log('PASS: all 10 directed and 8 same-OC lines, capture-only triggers, hop/flight/multi-target hits online/offline');
+console.log('PASS: all 22 directed and 8 same-OC lines, capture-only triggers, hop/flight/multi-target hits online/offline');
