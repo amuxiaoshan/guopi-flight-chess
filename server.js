@@ -588,7 +588,7 @@ const server=http.createServer(async(req,res)=>{
     return;
   }
   if(req.method==='GET'){
-    const known={'/':'index.html','/index.html':'index.html','/board.svg':'board.svg','/board-lineart.svg':'board-lineart.svg','/single.html':'single.html','/collision-test.html':'collision-test.html','/goal-test.html':'goal-test.html','/spectate-test.html':'spectate-test.html','/piece-preview.html':'piece-preview.html','/piece-motion-test.html':'piece-motion-test.html','/piece-color-test.html':'piece-color-test.html','/content-pack.js':'content-pack.js','/app.js':'app.js','/style.css':'style.css','/assets/popoya-original.png':'assets/popoya-original.png'};
+    const known={'/':'index.html','/index.html':'index.html','/board.svg':'board.svg','/board-lineart.svg':'board-lineart.svg','/single.html':'single.html','/step-play-test.html':'step-play-test.html','/collision-test.html':'collision-test.html','/goal-test.html':'goal-test.html','/spectate-test.html':'spectate-test.html','/piece-preview.html':'piece-preview.html','/piece-motion-test.html':'piece-motion-test.html','/piece-color-test.html':'piece-color-test.html','/content-pack.js':'content-pack.js','/app.js':'app.js','/style.css':'style.css','/assets/popoya-original.png':'assets/popoya-original.png'};
     // Expose only artwork files referenced by the active content pack.
     const artRefs=[...Object.values(GAME_CONTENT.characters).map(c=>c.pieceImage),...Object.values(GAME_CONTENT.art||{})].filter(v=>typeof v==='string'&&v.startsWith('assets/'));
     for(const asset of artRefs){
