@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'scripts/apply-popoya-motion.py'
+      - 'tests/goal-pass-through.test.js'
+      - '.github/workflows/apply-popoya-motion.yml'
   workflow_dispatch:
 
 permissions:
