@@ -24,7 +24,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: content-pack-build
+  group: content-pack-build-easter-20261029
   cancel-in-progress: false
 
 jobs:
