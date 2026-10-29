@@ -446,10 +446,13 @@ function renderLobby(){
  renderShareSettings();
  const self=me();if(!self)return;
  roleIndex=Math.max(0,humanRoleChoices().indexOf(self.role));
-  $('myToken').innerHTML=roleTokenMarkup(self.role);
-  $('myToken').style.cursor=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?'pointer':'default';
-  $('myToken').setAttribute('role','button');
-  $('myToken').tabIndex=self.role==='?'&&!state.secretUnlocked&&SECRET_ROLE?0:-1;
+  // The secret trigger is the question mark itself, not the whole 102px avatar.
+  // Native button keyboard handling avoids a second count from Enter/Space.
+  const canTapQuestion=self.role==='?'&&!state.secretUnlocked&&!!SECRET_ROLE;
+  $('myToken').innerHTML=canTapQuestion
+   ? '<button type="button" class="secret-question-hit" aria-label="点击问号五次解锁彩蛋">?</button>'
+   : roleTokenMarkup(self.role);
+  $('myToken').style.cursor='default';
  $('myToken').style.borderColor=GAME_CONTENT.teams[self.color].edge;
  $('myToken').style.backgroundColor=GAME_CONTENT.teams[self.color].base;
  $('myRole').textContent=self.role==='?'?'随机角色':roleName(self.role);
@@ -501,11 +504,8 @@ function renderLobby(){
   unlockingSecret=false;
   if(result)showSecretPopup();
  }
- $('myToken').addEventListener('click',tapSecretQuestion);
- $('myToken').addEventListener('keydown',event=>{
-  if((event.key==='Enter'||event.key===' ')&&me()?.role==='?'){
-   event.preventDefault();void tapSecretQuestion();
-  }
+ $('myToken').addEventListener('click',event=>{
+  if(event.target.closest('.secret-question-hit'))void tapSecretQuestion();
  });
  function changeRole(delta){
   if(!state||state.phase!=='lobby')return;
