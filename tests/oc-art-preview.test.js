@@ -26,7 +26,9 @@ const online=read('public/app.js');
 const css=read('public/style.css');
 
 for(const [filename,source] of [['online',online],['offline',offline]]){
- assert.ok(source.includes("'myToken').innerHTML=roleTokenMarkup(self.role)"),filename+': picker must render portrait');
+ assert.ok(source.includes("'myToken').innerHTML=canTapQuestion"),filename+': picker must limit the ? tap target');
+ assert.ok(source.includes(": roleTokenMarkup(self.role);"),filename+': picker must render original portraits for selected roles');
+ assert.ok(source.includes("class=\"secret-question-hit\""),filename+': random-role glyph should be an accessible button');
  assert.ok(source.includes("('myToken').style.backgroundColor=GAME_CONTENT.teams[self.color].base"),filename+': picker needs matching team base');
  assert.equal((source.match(/\$\{roleTokenMarkup\(p\.role\)\}/g)||[]).length,filename==='online'?3:2,filename+': lobby and every in-game avatar, including host transfer');
  assert.ok(source.includes("svg('image',{href:ROLE_INFO[p.role].pieceImage"),filename+': board must render the same PNG');
