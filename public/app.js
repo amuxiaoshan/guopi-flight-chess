@@ -542,7 +542,7 @@ function drawPieces(){
    const rim=border,discRadius=radius-rim/2,artRadius=radius-(packed?3.5:4);
    const sprite=svg('g',{},group);
    svg('circle',{r:discRadius,fill:COLOR[p.color].hex,stroke:'#111111','stroke-width':rim},sprite);
-   svg('image',{href:'/assets/popoya-original.png?v=popoya-7b365e61961d',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
+   svg('image',{href:'/assets/popoya-original.png?v=popoya-7b365e61961d',x:-artRadius,y:-artRadius,width:artRadius*2,height:artRadius*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},sprite);
    // Scale the entire colored disc + unmodified artwork together.
    // Existing compact stacks stay compact when resting.
    if(openingPopoya||landingPopoya){
