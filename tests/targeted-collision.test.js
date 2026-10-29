@@ -13,6 +13,20 @@ const expected={
  D:{A:'抱歉啊，这儿我先收下啦。',B:'好机会！下次记得瞧着点(●´∀)σ',C:'不好意思哥，你再多逛一圈吧！'},
  C:{A:'你还不够谨慎。',D:'麦冬，多注意点。'}
 };
+const selfExpected={
+ A:'你是……真奇怪呢。',
+ B:'哎？刚刚那个是不是长得跟我有点像？',
+ D:'一边去吧冒牌货！',
+ C:'不堪一击。',
+ E:'就算你跟我一样帅气我也不会放水的啦！',
+ G:'呃、撞飞自己感觉还真奇怪…',
+ F:'管你是谁……',
+ H:'那么你代替我先回去吧。'
+};
+assert.equal(Object.keys(selfExpected).length,8);
+for(const [actor,line] of Object.entries(selfExpected))
+ assert.equal(pack.characters[actor].collisionSelf,line,'self collision pack '+actor);
+
 assert.equal(Object.values(expected).reduce((n,obj)=>n+Object.keys(obj).length,0),10);
 for(const [actor,targets] of Object.entries(expected))
  assert.deepEqual(pack.characters[actor].collisionTargets,targets);
@@ -58,6 +72,17 @@ for(const file of ['server.js','public/single.html']){
    assert.deepEqual(Array.from(captured),[victim],label+'track real victim');
    assert.equal(collisionLine(actor,captured),line,label+'exact custom line');
   }
+ // The two players must have different team colors, but the same OC role.
+ for(const [role,line] of Object.entries(selfExpected)){
+   const same=setup(role,role),caught=[];
+   assert.notEqual(same.attacking.color,same.defending.color);
+   assert.equal(captureAlong(same.room,same.attacking,{path:[{pos:2,kind:'骰点'}]},0,caught),1,label+'self OC hit '+role);
+   assert.deepEqual(Array.from(caught),[role],label+'self OC recorded '+role);
+   assert.equal(collisionLine(role,caught),line,label+'self line '+role);
+   assert.equal(same.defending.pieces[0],-1,label+'self opponent returned to base '+role);
+ }
+ // Prioritize a captured same-OC piece over another valid directed target.
+ assert.equal(collisionLine('A',['D','A']),selfExpected.A,label+'self has priority over other directed roles');
  // No matching pair keeps existing generic speech.
  assert.equal(collisionLine('A',['H']),pack.characters.A.collision[0],label+'generic fallback');
  assert.equal(collisionLine('H',['A']),pack.characters.H.collision[0],label+'unmapped attacker fallback');
@@ -96,4 +121,4 @@ for(const file of ['server.js','public/single.html']){
  assert.deepEqual(Array.from(caught),['H','D']);
  assert.equal(collisionLine('A',caught),expected.A.D,label+'prioritize any valid targeted relationship');
 }
-console.log('PASS: all 10 directed lines, capture-only triggers, regular/hop/flight/multi-target hits in web and offline engines');
+console.log('PASS: all 10 directed and 8 same-OC lines, capture-only triggers, hop/flight/multi-target hits online/offline');
