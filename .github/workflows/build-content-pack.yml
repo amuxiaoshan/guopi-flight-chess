@@ -6,6 +6,10 @@ on:
       - 'content/**'
       - 'scripts/build-content-pack.py'
       - 'scripts/apply-secret-role.py'
+      - 'scripts/build-collision-lab.py'
+      - 'public/collision-lab.html'
+      - 'public/collision-lab-engine.js'
+      - 'tests/collision-lab.test.js'
       - 'tests/secret-role.test.js'
       - 'tests/content-pack.test.js'
       - 'tests/oc-art-preview.test.js'
@@ -55,11 +59,14 @@ jobs:
           fi
       - name: Apply hidden human-only role in online/offline clients
         run: python3 scripts/apply-secret-role.py
+      - name: Generate isolated collision lab from actual game rules
+        run: python3 scripts/build-collision-lab.py
       - name: Validate game syntax
         run: |
           node --check server.js
           node --check public/app.js
           node --check public/content-pack.js
+          node --check public/collision-lab-engine.js
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -71,6 +78,15 @@ jobs:
                   Path(f'/tmp/{name}-{i}.js').write_text(s,encoding='utf-8')
           PY
           for f in /tmp/single.html-*.js; do node --check "$f"; done
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          src=Path('public/collision-lab.html').read_text(encoding='utf-8')
+          code=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',src,re.S)
+          assert len(code)==1
+          Path('/tmp/collision-lab-inline.js').write_text(code[0],encoding='utf-8')
+          PY
+          node --check /tmp/collision-lab-inline.js
       - name: Check goal passing and token styles
         run: |
           node tests/goal-pass-through.test.js
@@ -80,18 +96,20 @@ jobs:
           node tests/oc-art-preview.test.js
           node tests/tanulian-art.test.js
           node tests/targeted-collision.test.js
+          node tests/collision-lab.test.js
           node tests/same-color-hop.test.js
           node tests/exit-mode-copy.test.js
       - name: Verify content pack idempotence
         run: |
           python3 scripts/build-content-pack.py
           python3 scripts/apply-secret-role.py
+          python3 scripts/build-collision-lab.py
           git diff --check
       - name: Commit generated files and original artwork copy
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A content public/content-pack.js public/content/assets public/app.js public/single.html public/index.html public/style.css server.js
+          git add -A content public/content-pack.js public/content/assets public/app.js public/single.html public/index.html public/style.css public/collision-lab-engine.js server.js
           if ! git diff --cached --quiet; then
             git commit -m "Compile selected OC content pack for online and offline games"
             git push
