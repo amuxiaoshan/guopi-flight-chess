@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f9f8f5">
+<title>适得棋所 · 碰撞实验室</title>
+<style>
+:root{font:15px/1.55 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#30343b;background:#f6f7f9}
+*{box-sizing:border-box}
+body{margin:0;padding:15px 12px 45px}
+main{max-width:1050px;margin:auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+a{color:#416e98;text-decoration:none}
+h1{font-size:25px;margin:7px 0 4px}
+p{margin:5px 0 13px}
+.sub,.explain{color:#6d7580;font-size:13px}
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(310px,.85fr);gap:15px;align-items:start}
+.card{background:#fff;border:1px solid #e4e7ec;border-radius:18px;padding:15px;box-shadow:0 5px 20px #25364b08}
+.board{width:100%;aspect-ratio:1;position:relative;background:#faf9f7;border-radius:12px;overflow:hidden}
+.board img,.board svg{position:absolute;inset:0;width:100%;height:100%}
+.board svg{touch-action:manipulation}
+.bubble{position:absolute;left:50%;top:48%;transform:translate(-50%,-105%);max-width:75%;min-width:175px;background:#fff;padding:11px 13px;border:2px solid #c8796f;border-radius:13px;box-shadow:0 8px 22px #282d302b;pointer-events:none;z-index:4}
+.bubble[hidden]{display:none}
+.bubble small{display:block;color:#9c5355;font-size:12px}
+.bubble span{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+label{font-size:13px;color:#646a75;display:block;margin-bottom:4px}
+select,button{font:inherit}
+select{width:100%;border:1px solid #d8dde5;background:#fff;border-radius:10px;padding:8px;min-height:40px;color:#343943}
+button{border:1px solid #d8dfe6;background:#fff;border-radius:11px;padding:10px 12px;cursor:pointer;min-height:43px}
+button:focus-visible,select:focus-visible{outline:2px solid #537eb6;outline-offset:2px}
+button.primary{background:#436f9c;border-color:#436f9c;color:white;font-weight:650}
+button.secondary{background:#f8f9fb}
+button:disabled{opacity:.6;cursor:default}
+.controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0}
+.buttons{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+fieldset{margin:0 0 10px;padding:10px;border:1px solid #e3e6eb;border-radius:13px;min-width:0}
+legend{color:#51647c;font-size:13px;padding:0 5px;font-weight:650}
+.seat{padding:10px 11px;border:1px solid #e4e8ed;border-radius:13px;margin:9px 0;background:#fff}
+.seat.actor{background:#f2f7fc;border-color:#afcce5}
+.seat-header{display:grid;grid-template-columns:1fr 1.5fr;gap:8px;align-items:center}
+.seat-title{font-weight:650;font-size:13px;display:flex;gap:6px;align-items:center}
+.swatch{width:11px;height:11px;border-radius:100%;display:inline-block;flex:none}
+.pieces-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+.pieces-row label{font-size:11px}
+.pieces-row select{font-size:12px;padding:5px 2px;min-height:36px}
+.result{padding:12px;border:1px solid #e3e7ec;border-radius:13px;background:#fbfcfe;min-height:86px;white-space:pre-wrap;line-height:1.7;font-size:13px}
+.dice{font-weight:750;color:#476b96;font-size:20px}
+.tip{font-size:12px;color:#818993;line-height:1.7;margin:9px 0 0}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.card{padding:12px}h1{font-size:22px}.controls{gap:6px}.pieces-row{gap:5px}}
+</style>
+<script src="/content-pack.js"></script>
+<script src="/collision-lab-engine.js"></script>
+</head>
+<body>
+<main>
+<header><a href="/">‹ 返回正式游戏</a><span class="sub">独立测试地图 · 不会创建房间</span></header>
+<h1>碰撞实验室</h1>
+<p class="sub">固定棋盘、固定骰点，自由调整自己和对手的角色与每一枚棋子。使用和正式游戏相同的移动、跳格、飞跃与撞棋算法。</p>
+<div class="layout">
+<section class="card">
+  <div class="board">
+    <img src="/board.svg" alt="适得棋所飞行棋棋盘">
+    <svg id="boardPieces" viewBox="0 0 900 900" aria-label="可点击格子摆放棋子"></svg>
+    <div id="bubble" class="bubble" hidden><small id="speaker"></small><span id="speech"></span></div>
+  </div>
+  <p class="tip">可先在右侧选择要摆放的棋子，再直接点击棋盘格子调整位置；也可以使用各角色下方的位置菜单。点击「自动对齐撞击」可快速准备一次真实碰撞。</p>
+  <div class="buttons">
+    <button id="autoAlign" class="secondary" type="button">自动对齐撞击</button>
+    <button id="sameRole" class="secondary" type="button">设成同角色对撞</button>
+    <button id="reset" class="secondary" type="button">重置地图</button>
+  </div>
+  <div id="result" class="result" role="status" aria-live="polite">已准备好：红方移动第 1 枚棋子，固定掷出 3 点。</div>
+</section>
+<section class="card">
+  <div class="controls">
+    <div><label for="actorColor">当前行动方</label><select id="actorColor"></select></div>
+    <div><label for="movingPiece">移动哪一枚</label><select id="movingPiece"></select></div>
+    <div><label for="die">固定骰点</label><select id="die"></select></div>
+  </div>
+  <div class="controls" style="grid-template-columns:1fr">
+    <div><label for="placeTarget">点击地图时要摆放的棋子</label><select id="placeTarget"></select></div>
+  </div>
+  <button id="simulate" class="primary" style="width:100%" type="button">按照固定骰点试撞一次</button>
+  <p class="explain">每次模拟从当前摆放状态重新开始，不会改动下面的位置设置。普通语录按顺序循环，专属语录按角色命中判定。</p>
+  <div id="seats"></div>
+</section>
+</div>
+</main>
+<script>
+"use strict";
+(function(){
+ const data=globalThis.GAME_CONTENT;
+ const eng=globalThis.COLLISION_LAB_ENGINE;
+ if(!data||!eng)throw Error('测试地图需要加载游戏角色包和规则引擎。');
+ const $=id=>document.getElementById(id);
+ const colors=eng.COLOR.map((c,i)=>({name:data.teams[i].name,base:data.teams[i].base,edge:data.teams[i].edge,ui:data.teams[i].ui}));
+ const ids=Object.keys(data.characters);
+ const roleOptions=ids.map(id=>({id,name:data.characters[id].name}));
+ const svgNS="http://www.w3.org/2000/svg";
+ let actorColor=3,movingPiece=0,die=3,placing={color:3,id:0},runNumber=0,working=false;
+ let seats=[];
+ function defaults(){
+  seats=colors.map((c,i)=>({color:i,role:i===3?'A':'A',pieces:[-1,-1,-1,-1]}));
+  seats[3].pieces[0]=8;seats[0].pieces[0]=37;
+  actorColor=3;movingPiece=0;die=3;placing={color:3,id:0};
+  eng.resetQuotes();
+ }
+ function selectOptions(el,arr,value){
+  el.replaceChildren();
+  for(const item of arr){
+    const op=document.createElement('option');
+    op.value=String(item.value);op.textContent=item.label;
+    if(String(value)===String(item.value))op.selected=true;
+    el.append(op);
+  }
+ }
+ const colorList=colors.map((c,i)=>({value:i,label:c.name+'方'}));
+ const pieceList=[0,1,2,3].map(i=>({value:i,label:'第 '+(i+1)+' 枚'}));
+ const dieList=[1,2,3,4,5,6].map(i=>({value:i,label:i+' 点'}));
+ const positionList=[{value:-1,label:'基地'},{value:-2,label:'起飞点'}];
+ for(let i=0;i<=55;i++)positionList.push({value:i,label:i===55?'55 · 终点':i>=50?i+' · 终点道':i+' · 外圈'});
+ function seatsControl(){
+  const container=$('seats');container.replaceChildren();
+  for(const p of seats){
+   const card=document.createElement('div');card.className='seat'+(p.color===actorColor?' actor':'');
+   const head=document.createElement('div');head.className='seat-header';
+   const title=document.createElement('div');title.className='seat-title';
+   const swatch=document.createElement('span');swatch.className='swatch';swatch.style.background=colors[p.color].ui;
+   title.append(swatch,document.createTextNode(colors[p.color].name+'方'+(p.color===actorColor?' · 我方':' · 对手')));
+   const roleSelect=document.createElement('select');
+   roleSelect.setAttribute('aria-label',colors[p.color].name+'方角色');
+   selectOptions(roleSelect,roleOptions.map(x=>({value:x.id,label:x.name})),p.role);
+   roleSelect.addEventListener('change',()=>{cancel();p.role=roleSelect.value;draw();});
+   head.append(title,roleSelect);card.append(head);
+   const row=document.createElement('div');row.className='pieces-row';
+   for(let i=0;i<4;i++){
+    const cell=document.createElement('div'),lab=document.createElement('label');
+    lab.textContent='棋子 '+(i+1);
+    const sel=document.createElement('select');
+    sel.setAttribute('aria-label',colors[p.color].name+'方第'+(i+1)+'枚棋子位置');
+    selectOptions(sel,positionList,p.pieces[i]);
+    sel.addEventListener('change',()=>{cancel();p.pieces[i]=Number(sel.value);draw();});
+    cell.append(lab,sel);row.append(cell);
+   }
+   card.append(row);container.append(card);
+  }
+ }
+ function updateControls(){
+  selectOptions($('actorColor'),colorList,actorColor);
+  selectOptions($('movingPiece'),pieceList,movingPiece);
+  selectOptions($('die'),dieList,die);
+  const placements=[];
+  for(let color=0;color<4;color++)for(let id=0;id<4;id++){
+    placements.push({value:color+':'+id,label:colors[color].name+'方 · 第 '+(id+1)+' 枚'});
+  }
+  selectOptions($('placeTarget'),placements,placing.color+':'+placing.id);
+  seatsControl();draw();
+ }
+ function svg(tag,attrs,parent){
+  const e=document.createElementNS(svgNS,tag);
+  for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));
+  parent.append(e);
+  return e;
+ }
+ function hideBubble(){$('bubble').hidden=true;}
+ function cancel(){runNumber++;working=false;$('simulate').disabled=false;hideBubble();}
+ function getPos(color,pos,id){return eng.point(color,pos,id);}
+ function draw(override=null,route=null){
+  const root=$('boardPieces');root.replaceChildren();
+  if(route&&route.length){
+   const pts=route.map(x=>getPos(actorColor,x,movingPiece)).map(p=>p.join(',')).join(' ');
+   svg('polyline',{points:pts,fill:'none',stroke:'#416f9c','stroke-width':7,'stroke-linecap':'round','stroke-linejoin':'round','stroke-dasharray':'11 12',opacity:.6},root);
+  }
+  const view=override||seats,packed=new Map();
+  for(const p of view)for(let id=0;id<4;id++){
+   const pos=p.pieces[id];
+   if(pos===55)continue;
+   const xy=getPos(p.color,pos,id),key=xy.join(',');
+   if(!packed.has(key))packed.set(key,[]);
+   packed.get(key).push({p,id,pos,xy});
+  }
+  for(const items of packed.values()){
+   for(let j=0;j<items.length;j++){
+    const {p,id,xy}=items[j],n=items.length;
+    const span=n>1?22:0;
+    const dx=n>1?(j%2?span:-span):0,dy=n>2?(j<2?-span:span):0;
+    const group=svg('g',{transform:'translate('+(xy[0]+dx)+' '+(xy[1]+dy)+')'},root);
+    const style=colors[p.color];const radius=n>1?20:30;
+    if(p.color===actorColor&&id===movingPiece)
+       svg('circle',{r:radius+6,fill:'none',stroke:'#ffffff','stroke-width':5,opacity:.95},group);
+    svg('circle',{r:radius-1,fill:style.base,stroke:style.edge,'stroke-width':3},group);
+    const role=data.characters[p.role],img=role?.pieceImage;
+    if(img){
+      const art=radius-4;
+      const shift=(Number(role.artOffsetY)||0)*radius/30;
+      svg('image',{href:img,x:-art,y:-art+shift,width:art*2,height:art*2,preserveAspectRatio:'xMidYMid meet','pointer-events':'none'},group);
+    }else{
+      const text=svg('text',{x:0,y:1,'text-anchor':'middle','dominant-baseline':'central','font-size':n>1?16:22,fill:'#27292e'},group);
+      text.textContent=role?.mark||'?';
+    }
+   }
+  }
+ }
+ function status(msg){$('result').textContent=msg;}
+ function name(id){return data.characters[id]?.name||id;}
+ function findDefender(){return [0,1,2,3].find(i=>i!==actorColor);}
+ function autoAlign(keepRole=true){
+  cancel();
+  const foe=findDefender(),attacker=seats[actorColor],defender=seats[foe];
+  let candidate=null;
+  for(const st of [8,7,9,10,11,12,5,6,15,16,20,24,30,35,40,2,1,0]){
+    const plan=eng.projection(st,die);
+    if(!plan||plan.to>=50||plan.to<0)continue;
+    const cell=(eng.COLOR[actorColor].start+plan.to)%52;
+    const enemyPos=(cell-eng.COLOR[foe].start+52)%52;
+    if(enemyPos<=49){candidate={st,enemyPos};break;}
+  }
+  if(!candidate){status('当前骰点没有找到方便演示的外圈撞棋位置。请手动布置棋子。');return;}
+  for(const p of seats)p.pieces.fill(-1);
+  attacker.pieces[movingPiece]=candidate.st;
+  defender.pieces[0]=candidate.enemyPos;
+  if(!keepRole)defender.role=attacker.role;
+  placing={color:foe,id:0};
+  updateControls();
+  status('已对齐：'+name(attacker.role)+' 固定走 '+die+' 点，将撞到 '+name(defender.role)+'。点击「按照固定骰点试撞一次」。');
+ }
+ async function simulate(){
+  if(working)return;
+  cancel();working=true;$('simulate').disabled=true;
+  const seq=runNumber,view=seats.map(p=>({color:p.color,role:p.role,pieces:p.pieces.slice()}));
+  const actor=view[actorColor],before=actor.pieces[movingPiece],plan=eng.projection(before,die);
+  if(!plan){working=false;$('simulate').disabled=false;status('这枚棋子当前无法按 '+die+' 点移动。若在基地，需要掷出 6 点起飞。');return;}
+  hideBubble();draw(view);
+  status(name(actor.role)+' 掷出 '+die+' 点，移动轨迹：'+plan.path.map(x=>x.pos+(x.kind==='骰点'?'':'('+x.kind+')')).join(' → '));
+  const path=[before,...plan.path.map(x=>x.pos)];
+  for(let i=1;i<path.length;i++){
+    await new Promise(resolve=>setTimeout(resolve,120));
+    if(seq!==runNumber)return;
+    actor.pieces[movingPiece]=path[i];draw(view,path.slice(0,i+1));
+  }
+  actor.pieces[movingPiece]=plan.to;
+  const victims=[],hits=eng.captureAlong({players:view},actor,plan,movingPiece,victims);
+  if(seq!==runNumber)return;
+  draw(view,path);
+  if(hits){
+    const words=eng.collisionLine(actor.role,victims);
+    const dest=getPos(actorColor,plan.to,movingPiece),bubble=$('bubble');
+    bubble.style.left=Math.min(79,Math.max(21,dest[0]/900*100))+'%';
+    bubble.style.top=Math.max(19,dest[1]/900*100-3)+'%';
+    $('speaker').textContent=name(actor.role)+' · 撞棋语录';
+    $('speech').textContent=words;
+    bubble.hidden=false;
+    status('成功撞回 '+hits+' 枚棋子\n撞到的角色：'+[...new Set(victims)].map(name).join('、')+'\n'+name(actor.role)+'：「'+words+'」');
+  }else{
+    status('移动成功，但没有真正撞回对方棋子。\n当前落点：'+plan.to+'；若叠放数量不相等，会同格共存，不触发语录。');
+  }
+  working=false;$('simulate').disabled=false;
+ }
+ $('actorColor').addEventListener('change',e=>{cancel();actorColor=Number(e.target.value);placing={color:actorColor,id:movingPiece};updateControls();});
+ $('movingPiece').addEventListener('change',e=>{cancel();movingPiece=Number(e.target.value);placing={color:actorColor,id:movingPiece};updateControls();});
+ $('die').addEventListener('change',e=>{cancel();die=Number(e.target.value);draw();});
+ $('placeTarget').addEventListener('change',e=>{const [color,id]=e.target.value.split(':').map(Number);placing={color,id};});
+ $('boardPieces').addEventListener('click',e=>{
+  cancel();
+  const rect=e.currentTarget.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width*900,y=(e.clientY-rect.top)/rect.height*900;
+  let best=null,dist=Infinity;
+  for(const pos of [-2,-1,...Array.from({length:56},(_,i)=>i)]){
+    const xy=getPos(placing.color,pos,placing.id),d=Math.hypot(x-xy[0],y-xy[1]);
+    if(d<dist){best=pos;dist=d;}
+  }
+  if(best!==null&&dist<44){seats[placing.color].pieces[placing.id]=best;seatsControl();draw();status('已放置 '+colors[placing.color].name+'方第 '+(placing.id+1)+' 枚棋子 → '+best+'。');}
+ });
+ $('simulate').addEventListener('click',simulate);
+ $('autoAlign').addEventListener('click',()=>autoAlign(true));
+ $('sameRole').addEventListener('click',()=>autoAlign(false));
+ $('reset').addEventListener('click',()=>{cancel();defaults();updateControls();status('测试地图已重置，红方走 3 格会撞回蓝方同角色棋子。');});
+ defaults();updateControls();
+})();
+</script>
+</body>
+</html>
