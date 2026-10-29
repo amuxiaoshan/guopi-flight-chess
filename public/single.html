@@ -955,7 +955,7 @@ async function action(payload){
   return result;
  }catch(e){toast(e.message);return null;}
 }
-function resetConnection(){cancelDiceSpin();stopDiceShake();OfflineEngine.unsubscribe();animationSerial++;rollSerial++;state=null;lastSequence=-1;lastMoveSeq=-1;lastRollSeq=-1;animPiece=null;}
+function resetConnection(){cancelDiceSpin();stopDiceShake();OfflineEngine.unsubscribe();animationSerial++;rollSerial++;state=null;lastSequence=-1;lastMoveSeq=-1;lastRollSeq=-1;animPiece=null;clearCaptureFlights();}
 function home(){resetConnection();OfflineEngine.clear();code='';authToken='';myRoomMode='';screen('welcome');refreshReturnSeat();}
 function connect(){resetConnection();OfflineEngine.subscribe(next=>receive(next));}
 async function enter(mode){const result=await action({type:'create',name:$('nickname').value,mode});if(!result)return;code=result.code;authToken=result.token;myRoomMode=mode;connect();if(result.state)receive(result.state);}
@@ -1189,7 +1189,12 @@ function point(color,pos,id){
  return LANES[COLOR[color].key][pos-LANE];
 }
 function svg(tag,props,parent){const el=document.createElementNS(NS,tag);Object.entries(props).forEach(([k,v])=>el.setAttribute(k,String(v)));parent.appendChild(el);return el;}
-function piecePosition(p,id){if(animPiece?.color===p.color&&animPiece?.id===id)return animPiece.pos;return p.pieces[id];}
+function piecePosition(p,id){
+ if(animPiece?.color===p.color&&animPiece?.id===id)return animPiece.pos;
+ const flight=captureFlights.find(f=>f.color===p.color&&f.piece===id&&f.phase!=='done');
+ if(flight)return flight.phase==='waiting'?flight.from:null;
+ return p.pieces[id];
+}
 // Every character uses the same 60 -> 85 -> 60 movement.
  // Original character images (including Popoya's PNG) are never modified.
 const PIECE_REST_DIAMETER=60;
@@ -1197,6 +1202,49 @@ const PIECE_MOVE_DIAMETER=85;
 // Token-specific colors. Keep COLOR[] for game UI and board indicators.
 const PIECE_COLORS=GAME_CONTENT.teams.map(team=>({base:team.base,edge:team.edge}));
 let pieceLanding=null;
+// Keep each victim on its original square until its actual impact step.
+const CAPTURE_RETURN_MS=190;
+const CAPTURE_IMPACT_HOLD_MS=40;
+let captureFlights=[];
+function clearCaptureFlights(){
+ for(const flight of captureFlights)flight.animation?.cancel();
+ captureFlights=[];
+ $('captures')?.replaceChildren();
+}
+function launchCaptureStep(stepIndex,serial){
+ if(serial!==animationSerial)return;
+ const impacted=captureFlights.filter(f=>f.step===stepIndex&&f.phase==='waiting');
+ if(!impacted.length)return;
+ const board=$('pieces'),layer=$('captures');
+ for(const flight of impacted){
+  const selector='[data-color="'+flight.color+'"][data-piece="'+flight.piece+'"]';
+  const original=board.querySelector(selector);
+  flight.phase='flying';
+  if(!original){flight.phase='done';continue;}
+  const ghost=original.cloneNode(true);
+  ghost.setAttribute('aria-hidden','true');ghost.removeAttribute('tabindex');
+  ghost.style.pointerEvents='none';
+  const fromTransform=original.getAttribute('transform')||'';
+  const match=/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/.exec(fromTransform);
+  const from=match?[Number(match[1]),Number(match[2])]:point(flight.color,flight.from,flight.piece);
+  const to=point(flight.color,-1,flight.piece);
+  layer.appendChild(ghost);
+  if(typeof ghost.animate==='function'){
+   flight.animation=ghost.animate([
+    {transform:'translate('+from[0]+'px,'+from[1]+'px)'},
+    {transform:'translate('+to[0]+'px,'+to[1]+'px)'}
+   ],{duration:CAPTURE_RETURN_MS,easing:'linear',fill:'forwards'});
+  }else{
+   const tween=svg('animateTransform',{attributeName:'transform',type:'translate',from:from.join(' '),to:to.join(' '),dur:CAPTURE_RETURN_MS+'ms',fill:'freeze'},ghost);
+   tween.beginElement?.();
+  }
+  setTimeout(()=>{
+   if(serial!==animationSerial)return;
+   ghost.remove();flight.phase='done';drawPieces();
+  },CAPTURE_RETURN_MS);
+ }
+ drawPieces();
+}
 function drawPieces(){
  const node=$('pieces');node.replaceChildren();if(!state)return;
  for(let color=0;color<4;color++){
@@ -1209,7 +1257,7 @@ function drawPieces(){
  for(const p of state.players)for(let id=0;id<4;id++){
   const pos=piecePosition(p,id);
   const passingThroughGoal=animPiece?.color===p.color&&animPiece?.id===id;
-  if(pos===GOAL&&!passingThroughGoal)continue;
+  if(pos===null||(pos===GOAL&&!passingThroughGoal))continue;
   const [x,y]=point(p.color,pos,id),key=`${x},${y}`;
   if(!packs.has(key))packs.set(key,[]);
   packs.get(key).push({p,id,pos,x,y});
@@ -1234,7 +1282,7 @@ function drawPieces(){
   const dx=packed?(i%colCount-(colCount-1)/2)*spacing:0;
   const dy=packed?(Math.floor(i/colCount)-(Math.ceil(count/colCount)-1)/2)*spacing:0;
   const canSelect=state.viewerColor===p.color&&state.turn===p.color&&state.roundPhase==='choose'&&state.options.length>1&&state.options.includes(id)&&!animPiece;
-  const group=svg('g',{transform:`translate(${x+dx} ${y+dy})`,class:canSelect?'piece available':'piece',role:canSelect?'button':'img','aria-label':`${p.role} 第${id+1}枚棋子`,tabindex:canSelect?'0':'-1'},node);
+  const group=svg('g',{transform:`translate(${x+dx} ${y+dy})`,class:canSelect?'piece available':'piece','data-color':p.color,'data-piece':id,role:canSelect?'button':'img','aria-label':`${p.role} 第${id+1}枚棋子`,tabindex:canSelect?'0':'-1'},node);
   if(canSelect){svg('circle',{r:radius+(packed?7:8),fill:'none',stroke:tone.edge,'stroke-width':5,class:'halo'},group);
    const peak=-(radius+(packed?16:28));
    svg('path',{d:`M-10 ${peak} L10 ${peak} L0 ${peak+14}Z`,fill:tone.edge,stroke:'white','stroke-width':2,class:'pointer'},group);}
@@ -1349,17 +1397,38 @@ async function animateRoll(n){
  // The server still holds this face on screen before progressing.
  $('diceStatus').textContent=`${n} 点`;
 }
-async function animateMove(move){$('bubble').style.display='none';const mine=++animationSerial;animPiece={color:move.color,id:move.piece,pos:move.start,growing:true};drawPieces();animPiece.growing=false;
+async function animateMove(move){
+ $('bubble').style.display='none';
+ const mine=++animationSerial;
+ clearCaptureFlights();
+ captureFlights=(move.captures||[]).map(c=>({...c,phase:'waiting',animation:null}));
+ animPiece={color:move.color,id:move.piece,pos:move.start,growing:true};
+ drawPieces();animPiece.growing=false;
  for(let k=0;k<move.path.length;k++){
-  const step=move.path[k];await sleep(step.kind==='飞跃'?260:step.kind==='跳格'?230:140);
+  const step=move.path[k];
+  await sleep(step.kind==='飞跃'?260:step.kind==='跳格'?230:140);
   if(mine!==animationSerial)return;
   animPiece.pos=step.pos;drawPieces();
+  // The attacker reaches the impact square first; the quick flight overlaps existing turn time.
+  if(captureFlights.some(f=>f.step===k&&f.phase==='waiting'))
+   setTimeout(()=>launchCaptureStep(k,mine),CAPTURE_IMPACT_HOLD_MS);
   if(k===move.path.length-1&&step.pos===GOAL)playGoalPieceSound(move.goalOrdinal);
    else playStepPop();
  }
- await sleep(100);if(mine!==animationSerial)return;pieceLanding={color:move.color,id:move.piece};animPiece=null;drawPieces();pieceLanding=null;
- if(move.hit&&move.dialogue){const [x,y]=point(move.color,move.path.at(-1).pos,move.piece);const b=$('bubble');b.textContent=move.dialogue;b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');b.style.left=`${Math.max(35,Math.min(65,5+x/900*90))}%`;b.style.top=`${5+y/900*90}%`;b.classList.toggle('below',y<190);b.style.display='block';setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);}
+ await sleep(100);
+ if(mine!==animationSerial)return;
+ pieceLanding={color:move.color,id:move.piece};animPiece=null;drawPieces();pieceLanding=null;
+ if(move.hit&&move.dialogue){
+  const [x,y]=point(move.color,move.path.at(-1).pos,move.piece),b=$('bubble');
+  b.textContent=move.dialogue;
+  b.style.setProperty('--bubble-color',COLOR[move.color]?.hex||'#ef7872');
+  b.style.left=Math.max(35,Math.min(65,5+x/900*90))+'%';
+  b.style.top=(5+y/900*90)+'%';
+  b.classList.toggle('below',y<190);b.style.display='block';
+  setTimeout(()=>{if(mine===animationSerial)b.style.display='none';},2700);
+ }
 }
+
 function rules(){
  const sections=[
   '→人数与目标\n2–4人，每人4架飞机。最先让全部4架飞机精确到达终点者获胜。',
