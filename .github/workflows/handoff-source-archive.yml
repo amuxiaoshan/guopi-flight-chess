@@ -1,0 +1,27 @@
+name: One-off handoff source snapshot (2026-11-11)
+on:
+  push:
+    branches:
+      - handoff-snapshot-20261111
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload project snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: guopi-source-main-3a6a265
+          path: |
+            .github/
+            content/
+            public/
+            scripts/
+            tests/
+            server.js
+            package.json
+            render.yaml
+          include-hidden-files: true
+          compression-level: 6
+          if-no-files-found: error
